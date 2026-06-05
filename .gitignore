@@ -1,0 +1,16 @@
+.DS_Store
+.pytest_cache/
+.venv/
+__pycache__/
+*.py[cod]
+*.sqlite
+*.sqlite-*
+*.egg-info/
+.env
+.env.*
+!.env.example
+*.log
+DerivedData/
+*.xcuserstate
+xcuserdata/
+.swiftpm/

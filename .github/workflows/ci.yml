@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  backend-tests:
+    name: Backend tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e '.[test]'
+
+      - name: Run tests
+        run: python -m pytest -q
+
+  home-assistant-image-build:
+    name: Home Assistant image build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Read app version
+        id: app
+        run: |
+          version="$(awk -F'"' '/^version:/ {print $2}' minutemetrics/config.yaml)"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+
+      - name: Build aarch64 image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./minutemetrics
+          platforms: linux/arm64
+          push: false
+          build-args: |
+            BUILD_ARCH=aarch64
+            BUILD_VERSION=${{ steps.app.outputs.version }}
+          tags: ghcr.io/kmcrandom/minutemetrics-ha:${{ steps.app.outputs.version }}

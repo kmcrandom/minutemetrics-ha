@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>MinuteMetrics</title>
+    <link rel="stylesheet" href="static/styles.css">
+  </head>
+  <body>
+    <main class="shell">
+      <section class="topline" aria-live="polite">
+        <div>
+          <p class="label" id="range">Loading</p>
+          <h1 id="title">MinuteMetrics</h1>
+        </div>
+        <button class="icon-button" id="refresh" type="button" aria-label="Refresh">
+          <span aria-hidden="true">&#8635;</span>
+        </button>
+      </section>
+
+      <section class="leader-band">
+        <div>
+          <p class="label">Leader</p>
+          <div class="leader-name" id="leaderName">Waiting for sync</div>
+        </div>
+        <div class="margin">
+          <p class="label">Margin</p>
+          <strong id="margin">0 min</strong>
+        </div>
+      </section>
+
+      <section class="participants" id="participants"></section>
+
+      <section class="empty-state" id="emptyState" hidden>
+        <div>
+          <p class="label">Ready To Sync</p>
+          <h2>No exercise minutes yet</h2>
+          <p>
+            Create a participant, scan the pairing QR code in the iOS app, then run Full Sync. The dashboard will fill in as soon as the first phone uploads Health data.
+          </p>
+        </div>
+        <div class="empty-steps">
+          <div>
+            <span>1</span>
+            <p>Create participant</p>
+          </div>
+          <div>
+            <span>2</span>
+            <p>Pair iPhone</p>
+          </div>
+          <div>
+            <span>3</span>
+            <p>Full Sync</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel admin-panel">
+        <div class="panel-head">
+          <h2>Participants</h2>
+        </div>
+        <form class="admin-form" id="participantForm">
+          <label>
+            <span>Admin token</span>
+            <input id="adminToken" name="adminToken" type="password" autocomplete="current-password" required>
+          </label>
+          <label>
+            <span>Name</span>
+            <input id="participantName" name="participantName" type="text" autocomplete="off" required>
+          </label>
+          <label>
+            <span>Color</span>
+            <input id="participantColor" name="participantColor" type="color" value="#2f80ed" aria-label="Participant color">
+          </label>
+          <label class="wide">
+            <span>Pairing server URL</span>
+            <input id="serverUrl" name="serverUrl" type="url" readonly>
+          </label>
+          <button class="primary-button" type="submit">Create</button>
+        </form>
+        <p class="admin-status" id="adminStatus"></p>
+      </section>
+
+      <section class="panel projection-panel">
+        <div class="panel-head">
+          <h2>Projected Minutes</h2>
+        </div>
+        <div class="projection-wrap" id="projectionChart"></div>
+        <div class="projection-legend" id="projectionLegend"></div>
+      </section>
+
+      <section class="analytics">
+        <div class="panel">
+          <div class="panel-head">
+            <h2>Last 14 Days</h2>
+          </div>
+          <div class="bars" id="bars"></div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head">
+            <h2>Daily Winners</h2>
+          </div>
+          <div class="heatmap" id="heatmap"></div>
+        </div>
+      </section>
+    </main>
+
+    <template id="participantTemplate">
+      <article class="participant">
+        <div class="participant-layout">
+          <div class="participant-main">
+            <span class="swatch"></span>
+            <div>
+              <h2 class="participant-name"></h2>
+              <p class="sync"></p>
+              <div class="total"></div>
+            </div>
+          </div>
+          <div>
+            <dl class="stats">
+              <div>
+                <dt>Today</dt>
+                <dd class="today"></dd>
+              </div>
+              <div>
+                <dt>Daily Avg</dt>
+                <dd class="average"></dd>
+              </div>
+            </dl>
+          </div>
+        </div>
+      </article>
+    </template>
+
+    <dialog class="pairing-dialog" id="pairingDialog">
+      <div class="pairing-head">
+        <div>
+          <p class="label">Pair iPhone</p>
+          <h2 id="pairingTitle">Scan QR Code</h2>
+        </div>
+        <button class="icon-button" id="closePairing" type="button" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="qr-frame" id="qrFrame"></div>
+      <p class="pairing-note">Open MinuteMetrics on the iPhone and scan this code to save the server URL and sync token.</p>
+    </dialog>
+
+    <script src="static/app.js"></script>
+  </body>
+</html>

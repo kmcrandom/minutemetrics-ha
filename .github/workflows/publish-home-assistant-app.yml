@@ -1,0 +1,54 @@
+name: Publish Home Assistant App
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish-aarch64:
+    name: Publish aarch64 image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Read app version
+        id: app
+        run: |
+          version="$(awk -F'"' '/^version:/ {print $2}' minutemetrics/config.yaml)"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+
+      - name: Build and publish image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./minutemetrics
+          platforms: linux/arm64
+          push: true
+          build-args: |
+            BUILD_ARCH=aarch64
+            BUILD_VERSION=${{ steps.app.outputs.version }}
+          tags: |
+            ghcr.io/kmcrandom/minutemetrics-ha:${{ steps.app.outputs.version }}
+            ghcr.io/kmcrandom/minutemetrics-ha:latest
+          labels: |
+            org.opencontainers.image.source=https://github.com/kmcrandom/minutemetrics-ha
+            org.opencontainers.image.description=Apple Health exercise-minute competition tracker for Home Assistant
