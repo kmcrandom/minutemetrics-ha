@@ -163,6 +163,7 @@ def test_dashboard_assets_are_served() -> None:
 
     page = api.get("/")
     assert page.status_code == 200
+    assert page.headers["cache-control"] == "no-store"
     assert "MinuteMetrics" in page.text
     assert "static/app.js" in page.text
     assert "No exercise minutes yet" in page.text
@@ -170,11 +171,13 @@ def test_dashboard_assets_are_served() -> None:
 
     admin_page = api.get("/admin")
     assert admin_page.status_code == 200
+    assert admin_page.headers["cache-control"] == "no-store"
     assert "Admin token" in admin_page.text
     assert "static/admin.js" in admin_page.text
 
     script = api.get("/static/app.js")
     assert script.status_code == 200
+    assert script.headers["cache-control"] == "no-store"
     assert "api/v1/competition" in script.text
 
 

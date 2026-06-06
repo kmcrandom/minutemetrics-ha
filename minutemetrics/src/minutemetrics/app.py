@@ -64,6 +64,13 @@ def create_app(settings: Settings | None = None, conn: sqlite3.Connection | None
     app.state.store = store
     app.state.settings = settings
 
+    @app.middleware("http")
+    async def prevent_dashboard_asset_cache(request, call_next):
+        response = await call_next(request)
+        if request.url.path in {"/", "/admin"} or request.url.path.startswith("/static/"):
+            response.headers["Cache-Control"] = "no-store"
+        return response
+
     static_dir = Path(__file__).parent / "static"
     app.mount("/static", StaticFiles(directory=static_dir), name="static")
 

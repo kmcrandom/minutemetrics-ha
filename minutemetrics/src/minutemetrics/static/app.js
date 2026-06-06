@@ -6,6 +6,8 @@ const state = {
     || "",
 };
 
+const HEATMAP_INTENSITY_CAP_MINUTES = 60;
+
 const els = {
   title: document.querySelector("#title"),
   range: document.querySelector("#range"),
@@ -22,8 +24,24 @@ const els = {
   template: document.querySelector("#participantTemplate"),
 };
 
+const dashboardTooltip = createDashboardTooltip();
+
 els.refresh.addEventListener("click", () => load());
 els.competitionSelect.addEventListener("change", () => selectCompetition(els.competitionSelect.value));
+document.addEventListener("click", (event) => {
+  if (
+    event.target instanceof Element
+    && !event.target.closest("[data-tooltip]")
+    && !event.target.closest(".dashboard-tooltip")
+  ) {
+    hideDashboardTooltip();
+  }
+});
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") {
+    hideDashboardTooltip();
+  }
+});
 
 load();
 setInterval(load, 60_000);
@@ -206,22 +224,17 @@ function renderProjectionChart(data) {
       d: stepPath(series.history, xForIndex, yForValue),
       stroke: series.participant.color,
     });
-    historyPath.append(createSvg("title", {}, `${series.participant.display_name}: actual cumulative minutes`));
+    attachTooltip(historyPath, `${series.participant.display_name}: actual cumulative minutes`);
     svg.append(historyPath);
 
     series.projections.forEach((projection) => {
+      const tooltip = `${series.participant.display_name} projected by ${projection.label}: ${formatNumber(Math.round(projection.points[projection.points.length - 1].value))} min`;
       const path = createSvg("path", {
         class: `projection-line projection-future ${projection.className}`,
         d: stepPath(projection.points, xForIndex, yForValue),
         stroke: series.participant.color,
       });
-      path.append(
-        createSvg(
-          "title",
-          {},
-          `${series.participant.display_name} projected by ${projection.label}: ${formatNumber(Math.round(projection.points[projection.points.length - 1].value))} min`
-        )
-      );
+      attachTooltip(path, tooltip);
       svg.append(path);
     });
   });
@@ -316,8 +329,6 @@ function renderBars(data) {
     const track = document.createElement("div");
     track.className = "bar-group";
     const tooltip = [shortDate(date)];
-    row.title = tooltip;
-    track.title = tooltip;
 
     participants.forEach((participant) => {
       const minutes = minutesFor(data, participant.id, date);
@@ -332,8 +343,8 @@ function renderBars(data) {
       track.append(bar);
     });
     const title = tooltip.join("\n");
-    row.title = title;
-    track.title = title;
+    attachTooltip(row, title);
+    attachTooltip(track, title);
     row.append(label, track);
     els.bars.append(row);
   });
@@ -366,16 +377,17 @@ function renderHeatmap(data) {
   if (participants.length < 1) {
     const empty = document.createElement("div");
     empty.className = "empty";
-    empty.textContent = "Add a participant to compare daily winners.";
+    empty.textContent = "Add a participant to compare daily movers.";
     els.heatmap.append(empty);
     return;
   }
   const today = todayDateString();
   const dates = allDates(data.daily_series).filter((date) => date <= today);
-  const max = Math.max(
+  const observedMax = Math.max(
     1,
     ...dates.flatMap((date) => participants.map((participant) => minutesFor(data, participant.id, date)))
   );
+  const colorScaleMax = Math.min(observedMax, HEATMAP_INTENSITY_CAP_MINUTES);
   const days = dates.map((date) => {
     const totals = participants
       .map((participant) => ({
@@ -406,13 +418,13 @@ function renderHeatmap(data) {
     month.days.forEach((day) => {
       const cell = document.createElement("div");
       cell.className = "heat-cell";
-      const alpha = Math.max(0.16, day.winningMinutes / max);
+      const alpha = Math.max(0.16, Math.min(1, day.winningMinutes / colorScaleMax));
       cell.style.background = day.winner ? colorWithAlpha(day.winner.color, alpha) : "var(--line)";
-      cell.title = [
+      attachTooltip(cell, [
         formatDate(day.date),
         day.winner ? `Winner: ${day.winner.display_name}` : "Tie",
         ...day.totals.map((item) => `${item.participant.display_name}: ${formatNumber(item.minutes)} min`),
-      ].join("\n");
+      ].join("\n"));
       cells.append(cell);
     });
 
@@ -459,6 +471,54 @@ function createSvg(tagName, attributes = {}, text = "") {
     element.textContent = text;
   }
   return element;
+}
+
+function attachTooltip(element, text) {
+  element.dataset.tooltip = text;
+  element.setAttribute("title", text);
+  element.setAttribute("tabindex", "0");
+  element.addEventListener("click", (event) => {
+    event.stopPropagation();
+    showDashboardTooltip(element, text);
+  });
+  element.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      showDashboardTooltip(element, text);
+    }
+  });
+}
+
+function createDashboardTooltip() {
+  const tooltip = document.createElement("div");
+  tooltip.className = "dashboard-tooltip";
+  tooltip.hidden = true;
+  tooltip.setAttribute("role", "status");
+  document.body.append(tooltip);
+  return tooltip;
+}
+
+function showDashboardTooltip(anchor, text) {
+  dashboardTooltip.textContent = text;
+  dashboardTooltip.hidden = false;
+
+  const anchorRect = anchor.getBoundingClientRect();
+  const tooltipRect = dashboardTooltip.getBoundingClientRect();
+  const gap = 10;
+  const left = Math.min(
+    window.innerWidth - tooltipRect.width - gap,
+    Math.max(gap, anchorRect.left + anchorRect.width / 2 - tooltipRect.width / 2)
+  );
+  const top = anchorRect.top > tooltipRect.height + gap * 2
+    ? anchorRect.top - tooltipRect.height - gap
+    : anchorRect.bottom + gap;
+
+  dashboardTooltip.style.left = `${left + window.scrollX}px`;
+  dashboardTooltip.style.top = `${Math.max(gap, top) + window.scrollY}px`;
+}
+
+function hideDashboardTooltip() {
+  dashboardTooltip.hidden = true;
 }
 
 function stepPath(points, xForIndex, yForValue) {

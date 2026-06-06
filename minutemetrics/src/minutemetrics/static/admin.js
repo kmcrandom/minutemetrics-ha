@@ -6,6 +6,20 @@ const state = {
   selectedCompetitionId: sessionStorage.getItem("minutemetrics.selectedCompetitionId") || "",
 };
 
+const DEFAULT_COLORS = [
+  "#0f766e",
+  "#2563eb",
+  "#7c3aed",
+  "#db2777",
+  "#dc2626",
+  "#ea580c",
+  "#ca8a04",
+  "#eab308",
+  "#16a34a",
+  "#0891b2",
+  "#4b5563",
+];
+
 const els = {
   tokenForm: document.querySelector("#tokenForm"),
   adminToken: document.querySelector("#adminToken"),
@@ -23,6 +37,7 @@ const els = {
   existingParticipant: document.querySelector("#existingParticipant"),
   memberName: document.querySelector("#memberName"),
   memberColor: document.querySelector("#memberColor"),
+  memberColorPresets: document.querySelector("#memberColorPresets"),
   serverUrl: document.querySelector("#serverUrl"),
   members: document.querySelector("#competitionMembers"),
   participants: document.querySelector("#adminParticipants"),
@@ -42,9 +57,12 @@ els.tokenForm.addEventListener("submit", (event) => unlock(event));
 els.competitionForm.addEventListener("submit", (event) => createCompetition(event));
 els.memberForm.addEventListener("submit", (event) => addMember(event));
 els.existingParticipant.addEventListener("change", () => syncMemberInputs());
+els.memberColor.addEventListener("input", () => updateColorPresetSelection());
 els.refreshAdmin.addEventListener("click", () => loadAdminData());
 els.clearData.addEventListener("click", () => clearSyncData());
 els.closePairing.addEventListener("click", () => els.pairingDialog.close());
+
+renderColorPresets();
 
 loadAppConfig().then(() => {
   if (els.adminToken.value.trim()) {
@@ -282,6 +300,7 @@ function syncMemberInputs() {
     els.memberName.required = true;
     if (!els.memberColor.value) els.memberColor.value = "#2f80ed";
   }
+  updateColorPresetSelection();
 }
 
 async function addMember(event) {
@@ -307,7 +326,8 @@ async function addMember(event) {
       ),
     });
     els.memberForm.reset();
-    els.memberColor.value = "#2f80ed";
+    els.memberColor.value = DEFAULT_COLORS[0];
+    updateColorPresetSelection();
     if (body.sync_token) {
       await showPairingQR(body.display_name, body.sync_token);
     }
@@ -532,6 +552,36 @@ async function fetchJson(url, options = {}) {
 
 function selectedCompetition() {
   return state.competitions.find((competition) => competition.id === state.selectedCompetitionId) || null;
+}
+
+function renderColorPresets() {
+  els.memberColorPresets.replaceChildren();
+  const legend = document.createElement("legend");
+  legend.textContent = "Default colors";
+  els.memberColorPresets.append(legend);
+
+  DEFAULT_COLORS.forEach((color) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "color-preset";
+    button.style.background = color;
+    button.dataset.color = color;
+    button.title = color;
+    button.setAttribute("aria-label", `Use color ${color}`);
+    button.addEventListener("click", () => {
+      els.memberColor.value = color;
+      updateColorPresetSelection();
+    });
+    els.memberColorPresets.append(button);
+  });
+  updateColorPresetSelection();
+}
+
+function updateColorPresetSelection() {
+  const selected = els.memberColor.value.toLowerCase();
+  els.memberColorPresets.querySelectorAll(".color-preset").forEach((button) => {
+    button.classList.toggle("selected", button.dataset.color === selected);
+  });
 }
 
 function adminToken() {

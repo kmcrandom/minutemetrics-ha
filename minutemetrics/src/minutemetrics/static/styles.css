@@ -441,7 +441,7 @@ dd {
 }
 
 .member-create-form {
-  grid-template-columns: minmax(180px, 1.1fr) minmax(160px, 1fr) 88px minmax(220px, 1fr) auto;
+  grid-template-columns: minmax(170px, 1fr) minmax(150px, 1fr) 88px minmax(220px, 1fr) minmax(210px, 1fr) auto;
 }
 
 .competition-list {
@@ -573,6 +573,37 @@ dd {
 
 .member-form input[type="color"] {
   padding: 3px;
+}
+
+.color-presets {
+  display: grid;
+  grid-template-columns: repeat(5, 28px);
+  gap: 7px;
+  align-content: end;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.color-presets legend {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 750;
+  text-transform: uppercase;
+}
+
+.color-preset {
+  width: 28px;
+  height: 28px;
+  border: 2px solid var(--panel);
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px var(--line);
+}
+
+.color-preset.selected {
+  box-shadow: 0 0 0 2px var(--text);
 }
 
 .admin-actions {
@@ -915,6 +946,41 @@ dd {
   min-width: 18px;
   border-radius: 4px;
   background: var(--panel-2);
+}
+
+.projection-line,
+.bar-row,
+.bar-track,
+.heat-cell {
+  cursor: pointer;
+}
+
+.projection-line:focus-visible,
+.bar-row:focus-visible,
+.bar-track:focus-visible,
+.heat-cell:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.dashboard-tooltip {
+  position: absolute;
+  z-index: 20;
+  max-width: min(320px, calc(100vw - 20px));
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--text);
+  color: var(--panel);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.22);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.35;
+  white-space: pre-line;
+}
+
+.dashboard-tooltip[hidden] {
+  display: none;
 }
 
 .empty {

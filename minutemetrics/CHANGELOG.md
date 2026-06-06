@@ -1,5 +1,13 @@
 # MinuteMetrics Changelog
 
+## 0.2.1
+
+- Added dashboard tap popups for iOS and touch devices.
+- Added participant color presets while preserving custom color selection.
+- Improved Daily Movers heatmap contrast by capping color intensity scaling.
+- Renamed Daily Winners to Daily Movers.
+- Disabled dashboard/static asset caching so Home Assistant shows updated UI files sooner.
+
 ## 0.2.0
 
 - Added multiple competition support with admin-created competitions.
