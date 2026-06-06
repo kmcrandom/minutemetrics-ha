@@ -5,6 +5,7 @@ from datetime import date
 
 from fastapi.testclient import TestClient
 
+from minutemetrics import __version__
 from minutemetrics.app import create_app, pairing_url
 from minutemetrics.config import Settings
 from minutemetrics.db import connect
@@ -165,7 +166,8 @@ def test_dashboard_assets_are_served() -> None:
     assert page.status_code == 200
     assert page.headers["cache-control"] == "no-store"
     assert "MinuteMetrics" in page.text
-    assert "static/app.js" in page.text
+    assert f"static/styles.css?v={__version__}" in page.text
+    assert f"static/app.js?v={__version__}" in page.text
     assert "No exercise minutes yet" in page.text
     assert "participantForm" not in page.text
 
@@ -173,7 +175,8 @@ def test_dashboard_assets_are_served() -> None:
     assert admin_page.status_code == 200
     assert admin_page.headers["cache-control"] == "no-store"
     assert "Admin token" in admin_page.text
-    assert "static/admin.js" in admin_page.text
+    assert f"static/styles.css?v={__version__}" in admin_page.text
+    assert f"static/admin.js?v={__version__}" in admin_page.text
 
     script = api.get("/static/app.js")
     assert script.status_code == 200

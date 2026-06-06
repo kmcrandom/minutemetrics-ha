@@ -67,9 +67,11 @@ async function loadCompetitions() {
   const response = await fetch("api/v1/competitions", { cache: "no-store" });
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
   state.competitions = await response.json();
-  if (!state.selectedCompetitionId && state.competitions.length) {
+  const selectedExists = state.competitions.some((competition) => competition.id === state.selectedCompetitionId);
+  if ((!state.selectedCompetitionId || !selectedExists) && state.competitions.length) {
     const fallback = state.competitions.find((competition) => competition.is_default) || state.competitions[0];
     state.selectedCompetitionId = fallback.id;
+    localStorage.setItem("minutemetrics.selectedCompetitionId", state.selectedCompetitionId);
   }
 }
 

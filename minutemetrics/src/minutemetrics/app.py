@@ -8,7 +8,7 @@ from pathlib import Path
 from urllib.parse import urlencode
 
 from fastapi import Depends, FastAPI, Header, HTTPException, status
-from fastapi.responses import FileResponse, Response
+from fastapi.responses import HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 import qrcode
 import qrcode.image.svg
@@ -91,12 +91,12 @@ def create_app(settings: Settings | None = None, conn: sqlite3.Connection | None
         return {"status": "ok", "version": __version__}
 
     @app.get("/", include_in_schema=False)
-    def dashboard() -> FileResponse:
-        return FileResponse(static_dir / "index.html")
+    def dashboard() -> HTMLResponse:
+        return versioned_html(static_dir / "index.html")
 
     @app.get("/admin", include_in_schema=False)
-    def admin_dashboard() -> FileResponse:
-        return FileResponse(static_dir / "admin.html")
+    def admin_dashboard() -> HTMLResponse:
+        return versioned_html(static_dir / "admin.html")
 
     @app.get("/api/v1/app-config", response_model=AppConfigResponse)
     def app_config() -> dict:
@@ -313,6 +313,13 @@ def _store_guard(callback: Callable[[], dict], resource_id: str | None = None) -
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from None
     except sqlite3.IntegrityError:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Resource conflict") from None
+
+
+def versioned_html(path: Path) -> HTMLResponse:
+    content = path.read_text(encoding="utf-8")
+    for asset in ("static/styles.css", "static/app.js", "static/admin.js"):
+        content = content.replace(f'"{asset}"', f'"{asset}?v={__version__}"')
+    return HTMLResponse(content)
 
 
 def pairing_url(server_url: str, sync_token: str) -> str:

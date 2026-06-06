@@ -1,5 +1,10 @@
 # MinuteMetrics Changelog
 
+## 0.2.2
+
+- Added versioned dashboard asset URLs to prevent stale Home Assistant webview JavaScript.
+- Fixed first-load fallback when the dashboard has an outdated selected competition ID.
+
 ## 0.2.1
 
 - Added dashboard tap popups for iOS and touch devices.
