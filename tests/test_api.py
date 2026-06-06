@@ -442,7 +442,6 @@ def test_competition_state_accepts_naive_sqlite_sync_timestamps() -> None:
 
 def test_competition_api_archiving_default_switching_and_fallback() -> None:
     api = client()
-    default_id = api.get("/api/v1/competition?as_of_date=2026-12-31").json()["competition"]["id"]
 
     monthly = create_competition(api)
     assert monthly["participant_count"] == 0
@@ -508,7 +507,14 @@ def test_competition_api_archiving_default_switching_and_fallback() -> None:
     api.app.state.store.conn.commit()
     fallback = api.get("/api/v1/competition?as_of_date=2026-12-31")
     assert fallback.status_code == 200
-    assert fallback.json()["competition"]["id"] == default_id
+    fallback_id = fallback.json()["competition"]["id"]
+    active_ids = {item["id"] for item in api.get("/api/v1/competitions").json()}
+    repaired = api.app.state.store.conn.execute(
+        "SELECT value FROM settings WHERE key = ?",
+        ("default_competition_id",),
+    ).fetchone()
+    assert fallback_id in active_ids
+    assert repaired["value"] == fallback_id
 
 
 def test_competition_memberships_reuse_health_data_with_overrides_and_removal() -> None:
