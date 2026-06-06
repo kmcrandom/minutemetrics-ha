@@ -33,29 +33,62 @@
       <section class="admin-workspace" id="adminWorkspace" hidden>
         <section class="panel">
           <div class="panel-head">
-            <h2>Add Participant</h2>
+            <h2>Competitions</h2>
           </div>
-          <form class="admin-form participant-create-form" id="participantForm">
+          <form class="admin-form competition-create-form" id="competitionForm">
             <label>
               <span>Name</span>
-              <input id="participantName" name="participantName" type="text" autocomplete="off" required>
+              <input id="competitionName" name="competitionName" type="text" autocomplete="off" required>
             </label>
             <label>
-              <span>Color</span>
-              <input id="participantColor" name="participantColor" type="color" value="#2f80ed" aria-label="Participant color">
+              <span>Slug</span>
+              <input id="competitionSlug" name="competitionSlug" type="text" autocomplete="off" placeholder="monthly-minutes">
             </label>
-            <label class="wide">
-              <span>Pairing server URL</span>
-              <input id="serverUrl" name="serverUrl" type="url" readonly>
+            <label>
+              <span>Start date</span>
+              <input id="competitionStartDate" name="competitionStartDate" type="date" required placeholder="YYYY-MM-DD">
+            </label>
+            <label>
+              <span>End date</span>
+              <input id="competitionEndDate" name="competitionEndDate" type="date" required placeholder="YYYY-MM-DD">
             </label>
             <button class="primary-button" type="submit">Create</button>
           </form>
+          <div class="competition-list" id="competitions"></div>
+        </section>
+
+        <section class="panel" id="membershipPanel" hidden>
+          <div class="panel-head">
+            <h2 id="membershipTitle">Participants</h2>
+          </div>
+          <form class="admin-form member-create-form" id="memberForm">
+            <label>
+              <span>Existing participant</span>
+              <select id="existingParticipant" name="existingParticipant">
+                <option value="">Create new participant</option>
+              </select>
+            </label>
+            <label>
+              <span>Name</span>
+              <input id="memberName" name="memberName" type="text" autocomplete="off">
+            </label>
+            <label>
+              <span>Color</span>
+              <input id="memberColor" name="memberColor" type="color" value="#2f80ed" aria-label="Participant color">
+            </label>
+            <label>
+              <span>Pairing server URL</span>
+              <input id="serverUrl" name="serverUrl" type="url" readonly>
+            </label>
+            <button class="primary-button" type="submit">Add</button>
+          </form>
+          <div class="admin-list" id="competitionMembers"></div>
         </section>
 
         <section class="panel">
           <div class="panel-head">
-            <h2>Participants</h2>
-            <button class="secondary-button" id="refreshParticipants" type="button">Refresh</button>
+            <h2>All Participants</h2>
+            <button class="secondary-button" id="refreshAdmin" type="button">Refresh</button>
           </div>
           <div class="admin-list" id="adminParticipants"></div>
         </section>
@@ -68,6 +101,36 @@
         </section>
       </section>
     </main>
+
+    <template id="competitionTemplate">
+      <article class="admin-competition">
+        <form class="admin-competition-form">
+          <label>
+            <span>Name</span>
+            <input class="admin-competition-name" type="text" autocomplete="off" required>
+          </label>
+          <label>
+            <span>Slug</span>
+            <input class="admin-competition-slug" type="text" autocomplete="off" required>
+          </label>
+          <label>
+            <span>Start date</span>
+            <input class="admin-competition-start" type="date" required placeholder="YYYY-MM-DD">
+          </label>
+          <label>
+            <span>End date</span>
+            <input class="admin-competition-end" type="date" required placeholder="YYYY-MM-DD">
+          </label>
+          <div class="admin-actions">
+            <button class="secondary-button select-competition" type="button">Manage</button>
+            <button class="secondary-button default-competition" type="button">Default</button>
+            <button class="secondary-button save-competition" type="submit">Save</button>
+            <button class="danger-button archive-competition" type="button">Archive</button>
+          </div>
+        </form>
+        <p class="sync competition-meta"></p>
+      </article>
+    </template>
 
     <template id="adminParticipantTemplate">
       <article class="admin-participant">
@@ -85,6 +148,31 @@
             <button class="secondary-button save-participant" type="submit">Save</button>
             <button class="secondary-button pair-participant" type="button">Pair</button>
             <button class="danger-button delete-participant" type="button">Delete</button>
+          </div>
+        </form>
+        <p class="sync"></p>
+      </article>
+    </template>
+
+    <template id="memberTemplate">
+      <article class="admin-participant">
+        <form class="member-form">
+          <span class="swatch"></span>
+          <label>
+            <span>Competition name</span>
+            <input class="member-name" type="text" autocomplete="off">
+          </label>
+          <label>
+            <span>Competition color</span>
+            <input class="member-color" type="color" aria-label="Competition color">
+          </label>
+          <label class="toggle-label">
+            <span>Active</span>
+            <input class="member-active" type="checkbox">
+          </label>
+          <div class="admin-actions">
+            <button class="secondary-button save-member" type="submit">Save</button>
+            <button class="danger-button remove-member" type="button">Remove</button>
           </div>
         </form>
         <p class="sync"></p>

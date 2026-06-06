@@ -24,6 +24,8 @@ tests/                  Backend API and configuration tests
 - [Home Assistant App Spec](specs/home-assistant-app.md)
 - [API and Data Model Spec](specs/api-data-model.md)
 - [Dashboard Spec](specs/dashboard.md)
+- [Multi-Competition Dashboard Change Spec](specs/change-multi-competition-dashboard.md)
+- [Multi-Competition Dashboard Implementation Plan](specs/plan-multi-competition-dashboard.md)
 - [Packaging and Distribution Spec](specs/packaging-distribution.md)
 - [Verification Plan](specs/verification.md)
 - [Implementation Roadmap](specs/implementation-roadmap.md)

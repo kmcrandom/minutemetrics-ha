@@ -1,5 +1,9 @@
 const state = {
   data: null,
+  competitions: [],
+  selectedCompetitionId: new URLSearchParams(window.location.search).get("competition")
+    || localStorage.getItem("minutemetrics.selectedCompetitionId")
+    || "",
 };
 
 const els = {
@@ -14,25 +18,75 @@ const els = {
   bars: document.querySelector("#bars"),
   heatmap: document.querySelector("#heatmap"),
   refresh: document.querySelector("#refresh"),
+  competitionSelect: document.querySelector("#competitionSelect"),
   template: document.querySelector("#participantTemplate"),
 };
 
 els.refresh.addEventListener("click", () => load());
+els.competitionSelect.addEventListener("change", () => selectCompetition(els.competitionSelect.value));
 
 load();
 setInterval(load, 60_000);
 
 async function load() {
   try {
-    const response = await fetch("api/v1/competition", { cache: "no-store" });
+    await loadCompetitions();
+    const response = await fetch(competitionStateUrl(), { cache: "no-store" });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     state.data = await response.json();
+    state.selectedCompetitionId = state.data.competition.id;
+    localStorage.setItem("minutemetrics.selectedCompetitionId", state.selectedCompetitionId);
+    renderCompetitionSelect();
     render(state.data);
   } catch (error) {
     els.leaderName.textContent = "Unable to load";
     els.margin.textContent = "0 min";
     els.participants.innerHTML = `<div class="empty">${escapeHtml(error.message)}</div>`;
   }
+}
+
+async function loadCompetitions() {
+  const response = await fetch("api/v1/competitions", { cache: "no-store" });
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  state.competitions = await response.json();
+  if (!state.selectedCompetitionId && state.competitions.length) {
+    const fallback = state.competitions.find((competition) => competition.is_default) || state.competitions[0];
+    state.selectedCompetitionId = fallback.id;
+  }
+}
+
+function competitionStateUrl() {
+  const params = new URLSearchParams({ as_of_date: todayDateString() });
+  if (!state.selectedCompetitionId) {
+    return `api/v1/competition?${params}`;
+  }
+  return `api/v1/competitions/${encodeURIComponent(state.selectedCompetitionId)}/state?${params}`;
+}
+
+function renderCompetitionSelect() {
+  els.competitionSelect.replaceChildren();
+  state.competitions.forEach((competition) => {
+    const option = document.createElement("option");
+    option.value = competition.id;
+    option.textContent = competition.name;
+    option.selected = competition.id === state.selectedCompetitionId;
+    els.competitionSelect.append(option);
+  });
+  els.competitionSelect.hidden = state.competitions.length <= 1;
+  els.competitionSelect.parentElement.hidden = state.competitions.length <= 1;
+}
+
+function selectCompetition(competitionId) {
+  state.selectedCompetitionId = competitionId;
+  localStorage.setItem("minutemetrics.selectedCompetitionId", competitionId);
+  const url = new URL(window.location);
+  if (competitionId) {
+    url.searchParams.set("competition", competitionId);
+  } else {
+    url.searchParams.delete("competition");
+  }
+  window.history.replaceState({}, "", url);
+  load();
 }
 
 function render(data) {
@@ -78,17 +132,20 @@ function renderProjectionChart(data) {
   els.projectionChart.replaceChildren();
   els.projectionLegend.replaceChildren();
 
-  const participants = data.participants.slice(0, 2);
-  if (participants.length < 2) {
+  const participants = data.participants;
+  if (participants.length < 1) {
     const empty = document.createElement("div");
     empty.className = "empty";
-    empty.textContent = "Add a second participant to compare projections.";
+    empty.textContent = "Add a participant to compare projections.";
     els.projectionChart.append(empty);
     return;
   }
 
   const start = data.competition.start_date;
-  const today = minDateString(todayDateString(), data.competition.end_date);
+  const today = maxDateString(
+    start,
+    data.effective_actual_end_date || minDateString(todayDateString(), data.competition.end_date)
+  );
   const end = data.competition.end_date;
   const allChartDates = dateRange(start, end);
   const todayIndex = Math.max(0, allChartDates.indexOf(today));
@@ -232,11 +289,11 @@ function renderProjectionLegend(series) {
 
 function renderBars(data) {
   els.bars.replaceChildren();
-  const participants = data.participants.slice(0, 2);
-  if (participants.length < 2) {
+  const participants = data.participants;
+  if (participants.length < 1) {
     const empty = document.createElement("div");
     empty.className = "empty";
-    empty.textContent = "Add a second participant to compare daily minutes.";
+    empty.textContent = "Add a participant to compare daily minutes.";
     els.bars.append(empty);
     return;
   }
@@ -248,40 +305,35 @@ function renderBars(data) {
   const scaleMax = niceScaleMax(max);
   renderBarScale(participants, scaleMax);
 
-  dates.toReversed().forEach((date) => {
+  [...dates].reverse().forEach((date) => {
     const row = document.createElement("div");
-    row.className = "bar-row";
+    row.className = "bar-row grouped-bar-row";
 
     const label = document.createElement("div");
     label.className = "bar-label";
     label.textContent = shortDate(date);
 
     const track = document.createElement("div");
-    track.className = "bar-track diverging";
-
-    const leftMinutes = minutesFor(data, participants[0].id, date);
-    const rightMinutes = minutesFor(data, participants[1].id, date);
-    const tooltip = [
-      shortDate(date),
-      `${participants[0].display_name}: ${formatNumber(leftMinutes)} min`,
-      `${participants[1].display_name}: ${formatNumber(rightMinutes)} min`,
-    ].join("\n");
+    track.className = "bar-group";
+    const tooltip = [shortDate(date)];
     row.title = tooltip;
     track.title = tooltip;
 
-    const leftFill = document.createElement("div");
-    leftFill.className = "bar-fill bar-fill-left";
-    leftFill.style.width = `${(leftMinutes / scaleMax) * 50}%`;
-    leftFill.style.background = participants[0].color;
-    leftFill.title = tooltip;
-
-    const rightFill = document.createElement("div");
-    rightFill.className = "bar-fill bar-fill-right";
-    rightFill.style.width = `${(rightMinutes / scaleMax) * 50}%`;
-    rightFill.style.background = participants[1].color;
-    rightFill.title = tooltip;
-
-    track.append(leftFill, rightFill);
+    participants.forEach((participant) => {
+      const minutes = minutesFor(data, participant.id, date);
+      tooltip.push(`${participant.display_name}: ${formatNumber(minutes)} min`);
+      const bar = document.createElement("div");
+      bar.className = "bar-track";
+      const fill = document.createElement("div");
+      fill.className = "bar-fill";
+      fill.style.width = `${(minutes / scaleMax) * 100}%`;
+      fill.style.background = participant.color;
+      bar.append(fill);
+      track.append(bar);
+    });
+    const title = tooltip.join("\n");
+    row.title = title;
+    track.title = title;
     row.append(label, track);
     els.bars.append(row);
   });
@@ -298,13 +350,11 @@ function renderBarScale(participants, scaleMax) {
   const scale = document.createElement("div");
   scale.className = "bar-scale";
   scale.innerHTML = `
-    <span>${formatNumber(scaleMax)}</span>
-    <span>${formatNumber(Math.round(scaleMax / 2))}</span>
     <span>0</span>
     <span>${formatNumber(Math.round(scaleMax / 2))}</span>
     <span>${formatNumber(scaleMax)}</span>
   `;
-  scale.title = `${participants[0].display_name} extends left; ${participants[1].display_name} extends right.`;
+  scale.title = `${participants.length} participant${participants.length === 1 ? "" : "s"} shown.`;
 
   row.append(label, scale);
   els.bars.append(row);
@@ -312,11 +362,11 @@ function renderBarScale(participants, scaleMax) {
 
 function renderHeatmap(data) {
   els.heatmap.replaceChildren();
-  const participants = data.participants.slice(0, 2);
-  if (participants.length < 2) {
+  const participants = data.participants;
+  if (participants.length < 1) {
     const empty = document.createElement("div");
     empty.className = "empty";
-    empty.textContent = "Add a second participant to compare daily winners.";
+    empty.textContent = "Add a participant to compare daily winners.";
     els.heatmap.append(empty);
     return;
   }
@@ -327,19 +377,19 @@ function renderHeatmap(data) {
     ...dates.flatMap((date) => participants.map((participant) => minutesFor(data, participant.id, date)))
   );
   const days = dates.map((date) => {
-    const firstMinutes = minutesFor(data, participants[0].id, date);
-    const secondMinutes = minutesFor(data, participants[1].id, date);
+    const totals = participants
+      .map((participant) => ({
+        participant,
+        minutes: minutesFor(data, participant.id, date),
+      }))
+      .sort((first, second) => second.minutes - first.minutes);
+    const top = totals[0];
+    const tied = totals.filter((item) => item.minutes === top.minutes);
     return {
       date,
-      firstMinutes,
-      secondMinutes,
-      winner:
-        firstMinutes === secondMinutes
-          ? null
-          : firstMinutes > secondMinutes
-            ? participants[0]
-            : participants[1],
-      winningMinutes: Math.max(firstMinutes, secondMinutes),
+      totals,
+      winner: tied.length === 1 ? top.participant : null,
+      winningMinutes: top.minutes,
     };
   });
   const months = groupByMonth(days);
@@ -361,8 +411,7 @@ function renderHeatmap(data) {
       cell.title = [
         formatDate(day.date),
         day.winner ? `Winner: ${day.winner.display_name}` : "Tie",
-        `${participants[0].display_name}: ${formatNumber(day.firstMinutes)} min`,
-        `${participants[1].display_name}: ${formatNumber(day.secondMinutes)} min`,
+        ...day.totals.map((item) => `${item.participant.display_name}: ${formatNumber(item.minutes)} min`),
       ].join("\n");
       cells.append(cell);
     });
@@ -462,6 +511,10 @@ function monthTicks(dates) {
 
 function minDateString(first, second) {
   return first < second ? first : second;
+}
+
+function maxDateString(first, second) {
+  return first > second ? first : second;
 }
 
 function lastDates(seriesByParticipant, count) {

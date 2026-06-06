@@ -9,11 +9,18 @@ from pathlib import Path
 SCHEMA = """
 PRAGMA foreign_keys = ON;
 
+CREATE TABLE IF NOT EXISTS schema_migrations (
+  version INTEGER PRIMARY KEY,
+  applied_at TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS competitions (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
+  slug TEXT,
   start_date TEXT NOT NULL,
   end_date TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'active',
   timezone_policy TEXT NOT NULL,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
@@ -65,7 +72,25 @@ CREATE TABLE IF NOT EXISTS settings (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS competition_memberships (
+  competition_id TEXT NOT NULL,
+  participant_id TEXT NOT NULL,
+  display_name_override TEXT,
+  color_override TEXT,
+  active INTEGER NOT NULL DEFAULT 1,
+  joined_at TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  PRIMARY KEY (competition_id, participant_id),
+  FOREIGN KEY (competition_id) REFERENCES competitions(id) ON DELETE CASCADE,
+  FOREIGN KEY (participant_id) REFERENCES participants(id) ON DELETE CASCADE
+);
+
 """
+
+
+MIGRATIONS = (1,)
 
 
 def connect(db_path: str) -> sqlite3.Connection:
@@ -79,7 +104,90 @@ def connect(db_path: str) -> sqlite3.Connection:
 
 def init_db(conn: sqlite3.Connection) -> None:
     conn.executescript(SCHEMA)
+    _run_migrations(conn)
     conn.commit()
+
+
+def _run_migrations(conn: sqlite3.Connection) -> None:
+    for version in MIGRATIONS:
+        if _migration_applied(conn, version):
+            continue
+        with transaction(conn):
+            _apply_migration(conn, version)
+
+
+def _migration_applied(conn: sqlite3.Connection, version: int) -> bool:
+    row = conn.execute("SELECT 1 FROM schema_migrations WHERE version = ?", (version,)).fetchone()
+    return row is not None
+
+
+def _apply_migration(conn: sqlite3.Connection, version: int) -> None:
+    if version == 1:
+        _migration_1(conn)
+    else:
+        raise ValueError(f"Unknown migration version: {version}")
+    conn.execute(
+        "INSERT INTO schema_migrations (version, applied_at) VALUES (?, datetime('now'))",
+        (version,),
+    )
+
+
+def _migration_1(conn: sqlite3.Connection) -> None:
+    if not _column_exists(conn, "competitions", "slug"):
+        conn.execute("ALTER TABLE competitions ADD COLUMN slug TEXT")
+    if not _column_exists(conn, "competitions", "status"):
+        conn.execute("ALTER TABLE competitions ADD COLUMN status TEXT NOT NULL DEFAULT 'active'")
+
+    conn.executescript(
+        """
+        CREATE TABLE IF NOT EXISTS competition_memberships (
+          competition_id TEXT NOT NULL,
+          participant_id TEXT NOT NULL,
+          display_name_override TEXT,
+          color_override TEXT,
+          active INTEGER NOT NULL DEFAULT 1,
+          joined_at TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          PRIMARY KEY (competition_id, participant_id),
+          FOREIGN KEY (competition_id) REFERENCES competitions(id) ON DELETE CASCADE,
+          FOREIGN KEY (participant_id) REFERENCES participants(id) ON DELETE CASCADE
+        );
+
+        UPDATE competitions
+        SET slug = id
+        WHERE slug IS NULL OR slug = '';
+
+        UPDATE competitions
+        SET status = 'active'
+        WHERE status IS NULL OR status = '';
+
+        INSERT OR IGNORE INTO competition_memberships (
+          competition_id, participant_id, active, joined_at, created_at, updated_at
+        )
+        SELECT 'default', id, active, created_at, created_at, updated_at
+        FROM participants
+        WHERE EXISTS (SELECT 1 FROM competitions WHERE id = 'default');
+
+        INSERT OR IGNORE INTO settings (key, value)
+        SELECT 'default_competition_id', 'default'
+        WHERE EXISTS (SELECT 1 FROM competitions WHERE id = 'default');
+
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_competitions_slug
+          ON competitions(slug);
+
+        CREATE INDEX IF NOT EXISTS idx_memberships_participant_id
+          ON competition_memberships(participant_id);
+
+        CREATE INDEX IF NOT EXISTS idx_memberships_competition_active
+          ON competition_memberships(competition_id, active);
+        """
+    )
+
+
+def _column_exists(conn: sqlite3.Connection, table: str, column: str) -> bool:
+    rows = conn.execute(f"PRAGMA table_info({table})").fetchall()
+    return any(row["name"] == column for row in rows)
 
 
 @contextmanager
@@ -90,4 +198,3 @@ def transaction(conn: sqlite3.Connection) -> Iterator[sqlite3.Connection]:
     except Exception:
         conn.rollback()
         raise
-

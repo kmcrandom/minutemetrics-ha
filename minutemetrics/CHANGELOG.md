@@ -1,5 +1,15 @@
 # MinuteMetrics Changelog
 
+## 0.2.0
+
+- Added multiple competition support with admin-created competitions.
+- Added competition membership management, including adding existing participants to multiple competitions.
+- Added per-competition participant display name and color overrides.
+- Added a dashboard competition switcher.
+- Updated dashboard analytics to support more than two participants.
+- Added migration support for existing `0.1.x` installs.
+- Added participant sync discovery for joined competitions.
+
 ## 0.1.1
 
 - Added a separate admin dashboard at `/admin`.

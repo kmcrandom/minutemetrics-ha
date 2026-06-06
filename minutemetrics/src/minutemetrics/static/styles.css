@@ -88,6 +88,39 @@ h1 {
   font-size: 24px;
 }
 
+.dashboard-actions {
+  display: flex;
+  gap: 10px;
+  align-items: end;
+  justify-content: flex-end;
+}
+
+.competition-select-label {
+  display: grid;
+  gap: 5px;
+  min-width: min(280px, 42vw);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 750;
+  text-transform: uppercase;
+}
+
+.competition-select-label[hidden] {
+  display: none;
+}
+
+select,
+.admin-form select {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0 34px 0 12px;
+  background: var(--field);
+  color: var(--text);
+  font: inherit;
+}
+
 .leader-band {
   grid-template-columns: 1fr minmax(160px, auto);
   align-items: end;
@@ -403,11 +436,26 @@ dd {
   grid-template-columns: minmax(180px, 1fr) 88px auto;
 }
 
+.competition-create-form {
+  grid-template-columns: minmax(170px, 1.1fr) minmax(150px, 0.9fr) 150px 150px auto;
+}
+
+.member-create-form {
+  grid-template-columns: minmax(180px, 1.1fr) minmax(160px, 1fr) 88px minmax(220px, 1fr) auto;
+}
+
+.competition-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
 .admin-list {
   display: grid;
   gap: 10px;
 }
 
+.admin-competition,
 .admin-participant {
   padding: 12px;
   border: 1px solid var(--line);
@@ -415,9 +463,31 @@ dd {
   background: var(--panel-2);
 }
 
+.admin-competition.selected {
+  border-color: var(--accent);
+}
+
+.admin-competition.archived {
+  opacity: 0.72;
+}
+
+.admin-competition-form {
+  display: grid;
+  grid-template-columns: minmax(160px, 1.1fr) minmax(140px, 0.8fr) 142px 142px auto;
+  gap: 12px;
+  align-items: end;
+}
+
 .admin-participant-form {
   display: grid;
   grid-template-columns: 16px minmax(180px, 1fr) 88px auto;
+  gap: 12px;
+  align-items: end;
+}
+
+.member-form {
+  display: grid;
+  grid-template-columns: 16px minmax(180px, 1fr) 88px 76px auto;
   gap: 12px;
   align-items: end;
 }
@@ -428,6 +498,13 @@ dd {
   min-height: 42px;
 }
 
+.member-form .swatch {
+  align-self: stretch;
+  height: auto;
+  min-height: 42px;
+}
+
+.admin-competition-form label,
 .admin-participant-form label {
   display: grid;
   gap: 6px;
@@ -438,6 +515,26 @@ dd {
   text-transform: uppercase;
 }
 
+.member-form label {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 750;
+  text-transform: uppercase;
+}
+
+.toggle-label {
+  justify-items: start;
+}
+
+.toggle-label input {
+  width: 24px;
+  min-height: 24px;
+}
+
+.admin-competition-form input,
 .admin-participant-form input {
   width: 100%;
   min-height: 38px;
@@ -449,11 +546,32 @@ dd {
   text-transform: none;
 }
 
+.member-form input {
+  width: 100%;
+  min-height: 38px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--field);
+  color: var(--text);
+  font: inherit;
+  text-transform: none;
+}
+
+.admin-competition-form input[type="text"],
+.admin-competition-form input[type="date"],
 .admin-participant-form input[type="text"] {
   padding: 0 10px;
 }
 
+.member-form input[type="text"] {
+  padding: 0 10px;
+}
+
 .admin-participant-form input[type="color"] {
+  padding: 3px;
+}
+
+.member-form input[type="color"] {
   padding: 3px;
 }
 
@@ -662,6 +780,19 @@ dd {
   background: var(--panel-2);
 }
 
+.bar-group {
+  display: grid;
+  gap: 4px;
+}
+
+.grouped-bar-row {
+  align-items: start;
+}
+
+.grouped-bar-row .bar-track {
+  height: 14px;
+}
+
 .bar-track.diverging::before {
   content: "";
   position: absolute;
@@ -674,11 +805,16 @@ dd {
 
 .bar-fill {
   position: absolute;
-  top: 8px;
-  bottom: 8px;
+  top: 0;
+  bottom: 0;
   width: 0;
   border-radius: 4px;
   background: var(--accent);
+}
+
+.bar-track.diverging .bar-fill {
+  top: 8px;
+  bottom: 8px;
 }
 
 .bar-fill-left {
@@ -692,7 +828,7 @@ dd {
 .bar-scale {
   position: relative;
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   color: var(--muted);
   font-size: 12px;
   font-variant-numeric: tabular-nums;
@@ -727,12 +863,11 @@ dd {
   text-align: left;
 }
 
-.bar-scale span:nth-child(3) {
+.bar-scale span:nth-child(2) {
   text-align: center;
 }
 
-.bar-scale span:nth-child(4),
-.bar-scale span:nth-child(5) {
+.bar-scale span:nth-child(3) {
   text-align: right;
 }
 
@@ -741,12 +876,11 @@ dd {
   left: 0;
 }
 
-.bar-scale span:nth-child(3)::after {
+.bar-scale span:nth-child(2)::after {
   left: 50%;
 }
 
-.bar-scale span:nth-child(4)::after,
-.bar-scale span:nth-child(5)::after {
+.bar-scale span:nth-child(3)::after {
   right: 0;
 }
 
@@ -804,6 +938,19 @@ dd {
     grid-template-columns: 1fr;
   }
 
+  .topline {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-actions {
+    justify-content: stretch;
+  }
+
+  .competition-select-label {
+    min-width: 0;
+    flex: 1;
+  }
+
   .empty-state {
     grid-template-columns: 1fr;
   }
@@ -838,6 +985,10 @@ dd {
 
   .token-form,
   .participant-create-form,
+  .competition-create-form,
+  .member-create-form,
+  .admin-competition-form,
+  .member-form,
   .admin-participant-form {
     grid-template-columns: 1fr;
   }

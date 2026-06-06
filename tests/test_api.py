@@ -36,6 +36,27 @@ def create_participant(api: TestClient, display_name: str = "Participant") -> di
     return response.json()
 
 
+def create_competition(
+    api: TestClient,
+    name: str = "February Minutes",
+    slug: str = "february-minutes",
+    start_date: str = "2026-02-01",
+    end_date: str = "2026-02-28",
+) -> dict:
+    response = api.post(
+        "/api/v1/admin/competitions",
+        headers=admin_headers(),
+        json={
+            "name": name,
+            "slug": slug,
+            "start_date": start_date,
+            "end_date": end_date,
+        },
+    )
+    assert response.status_code == 201
+    return response.json()
+
+
 def sync_payload(minutes: int = 30) -> dict:
     return {
         "device": {
@@ -82,6 +103,40 @@ def test_configured_competition_metadata() -> None:
     assert response.json()["competition"]["name"] == "Configured Minutes"
     assert response.json()["competition"]["start_date"] == "2026-02-01"
     assert response.json()["competition"]["end_date"] == "2026-11-30"
+    assert response.json()["competition"]["slug"] == "default"
+    assert response.json()["competition"]["status"] == "active"
+
+
+def test_existing_competition_is_not_overwritten_by_later_settings() -> None:
+    conn = connect(":memory:")
+    create_app(
+        Settings(
+            db_path=":memory:",
+            admin_token=ADMIN_TOKEN,
+            competition_name="Original Minutes",
+            competition_start_date="2026-01-01",
+            competition_end_date="2026-12-31",
+        ),
+        conn=conn,
+    )
+    app = create_app(
+        Settings(
+            db_path=":memory:",
+            admin_token=ADMIN_TOKEN,
+            competition_name="Changed Minutes",
+            competition_start_date="2026-02-01",
+            competition_end_date="2026-11-30",
+        ),
+        conn=conn,
+    )
+    api = TestClient(app)
+
+    response = api.get("/api/v1/competition")
+
+    assert response.status_code == 200
+    assert response.json()["competition"]["name"] == "Original Minutes"
+    assert response.json()["competition"]["start_date"] == "2026-01-01"
+    assert response.json()["competition"]["end_date"] == "2026-12-31"
 
 
 def test_app_config_exposes_pairing_server_url() -> None:
@@ -291,6 +346,297 @@ def test_sync_requires_participant_token_and_upserts_days() -> None:
     assert updated.status_code == 200
     assert updated.json()["changed_count"] == 1
     assert updated.json()["total_minutes"] == 45
+
+
+def test_competition_state_filters_totals_to_competition_date_range() -> None:
+    conn = connect(":memory:")
+    app = create_app(
+        Settings(
+            db_path=":memory:",
+            admin_token=ADMIN_TOKEN,
+            competition_name="February Minutes",
+            competition_start_date="2026-02-01",
+            competition_end_date="2026-02-28",
+        ),
+        conn=conn,
+    )
+    api = TestClient(app)
+    participant = create_participant(api)
+
+    response = api.post(
+        "/api/v1/sync/exercise-days",
+        headers={"Authorization": f"Bearer {participant['sync_token']}"},
+        json={
+            "device": {"name": "Participant iPhone", "app_version": "1.0.0", "ios_version": "18.0"},
+            "range": {"start_date": "2026-01-31", "end_date": "2026-03-01"},
+            "timezone_identifier": "America/New_York",
+            "days": [
+                {"date": "2026-01-31", "exercise_minutes": 100},
+                {"date": "2026-02-01", "exercise_minutes": 20},
+                {"date": "2026-02-02", "exercise_minutes": 30},
+                {"date": "2026-03-01", "exercise_minutes": 200},
+            ],
+        },
+    )
+    assert response.status_code == 200
+
+    state = api.get("/api/v1/competition?as_of_date=2026-02-28").json()
+
+    assert state["as_of_date"] == "2026-02-28"
+    assert state["effective_actual_end_date"] == "2026-02-28"
+    assert state["participants"][0]["total_minutes"] == 50
+    assert state["participants"][0]["days_synced"] == 2
+    assert state["daily_series"] == {
+        participant["id"]: [
+            {"date": "2026-02-01", "exercise_minutes": 20},
+            {"date": "2026-02-02", "exercise_minutes": 30},
+        ]
+    }
+
+
+def test_default_competition_state_supports_more_than_two_participants() -> None:
+    api = client()
+    empty = api.get("/api/v1/competition").json()
+    assert empty["participants"] == []
+
+    participants = []
+    for index in range(8):
+        participant = create_participant(api, f"Runner {index + 1}")
+        participants.append(participant)
+        response = api.post(
+            "/api/v1/sync/exercise-days",
+            headers={"Authorization": f"Bearer {participant['sync_token']}"},
+            json=sync_payload(minutes=(index + 1) * 10),
+        )
+        assert response.status_code == 200
+        if index in {0, 3, 7}:
+            state = api.get("/api/v1/competition").json()
+            assert len(state["participants"]) == index + 1
+            assert [item["rank"] for item in state["participants"]] == list(range(1, index + 2))
+
+    final_state = api.get("/api/v1/competition").json()
+    assert final_state["leader"]["id"] == participants[-1]["id"]
+    assert final_state["margin"] == 10
+
+
+def test_competition_state_accepts_naive_sqlite_sync_timestamps() -> None:
+    api = client()
+    participant = create_participant(api, "Runner")
+    api.app.state.store.conn.execute(
+        "UPDATE participants SET last_synced_at = datetime('now') WHERE id = ?",
+        (participant["id"],),
+    )
+    api.app.state.store.conn.commit()
+
+    response = api.get("/api/v1/competition")
+
+    assert response.status_code == 200
+    assert response.json()["participants"][0]["id"] == participant["id"]
+
+
+def test_competition_api_archiving_default_switching_and_fallback() -> None:
+    api = client()
+
+    monthly = create_competition(api)
+    assert monthly["participant_count"] == 0
+    assert monthly["is_default"] is False
+
+    duplicate = api.post(
+        "/api/v1/admin/competitions",
+        headers=admin_headers(),
+        json={
+            "name": "Duplicate February",
+            "slug": "february-minutes",
+            "start_date": "2026-02-01",
+            "end_date": "2026-02-28",
+        },
+    )
+    assert duplicate.status_code == 409
+
+    invalid_dates = api.post(
+        "/api/v1/admin/competitions",
+        headers=admin_headers(),
+        json={
+            "name": "Invalid Dates",
+            "slug": "invalid-dates",
+            "start_date": "2026-03-01",
+            "end_date": "2026-02-01",
+        },
+    )
+    assert invalid_dates.status_code == 422
+
+    by_slug = api.get("/api/v1/competitions/by-slug/february-minutes/state?as_of_date=2026-02-28")
+    assert by_slug.status_code == 200
+    assert by_slug.json()["competition"]["id"] == monthly["id"]
+
+    archived = api.post(
+        f"/api/v1/admin/competitions/{monthly['id']}/archive",
+        headers=admin_headers(),
+    )
+    assert archived.status_code == 200
+    assert archived.json()["status"] == "archived"
+    public_ids = {item["id"] for item in api.get("/api/v1/competitions").json()}
+    assert monthly["id"] not in public_ids
+
+    restored = api.post(
+        f"/api/v1/admin/competitions/{monthly['id']}/restore",
+        headers=admin_headers(),
+    )
+    assert restored.status_code == 200
+    assert restored.json()["status"] == "active"
+
+    selected = api.post(
+        f"/api/v1/admin/competitions/{monthly['id']}/default",
+        headers=admin_headers(),
+    )
+    assert selected.status_code == 200
+    assert selected.json()["is_default"] is True
+    state = api.get("/api/v1/competition?as_of_date=2026-02-28").json()
+    assert state["competition"]["id"] == monthly["id"]
+
+    api.app.state.store.conn.execute(
+        "UPDATE settings SET value = ? WHERE key = ?",
+        ("missing-competition", "default_competition_id"),
+    )
+    api.app.state.store.conn.commit()
+    fallback = api.get("/api/v1/competition?as_of_date=2026-12-31")
+    assert fallback.status_code == 200
+    assert fallback.json()["competition"]["id"] == "default"
+
+
+def test_competition_memberships_reuse_health_data_with_overrides_and_removal() -> None:
+    api = client()
+    participant = create_participant(api, "Runner")
+    monthly = create_competition(api)
+
+    membership = api.post(
+        f"/api/v1/admin/competitions/{monthly['id']}/participants",
+        headers=admin_headers(),
+        json={
+            "participant_id": participant["id"],
+            "display_name_override": "February Runner",
+            "color_override": "#ff00ff",
+        },
+    )
+    assert membership.status_code == 201
+    assert membership.json()["display_name"] == "February Runner"
+    assert membership.json()["color"] == "#ff00ff"
+    assert membership.json()["sync_token"] is None
+
+    response = api.post(
+        "/api/v1/sync/exercise-days",
+        headers={"Authorization": f"Bearer {participant['sync_token']}"},
+        json={
+            "device": {"name": "Participant iPhone", "app_version": "1.0.0", "ios_version": "18.0"},
+            "range": {"start_date": "2026-01-01", "end_date": "2026-03-01"},
+            "timezone_identifier": "America/New_York",
+            "days": [
+                {"date": "2026-01-01", "exercise_minutes": 40},
+                {"date": "2026-02-01", "exercise_minutes": 20},
+                {"date": "2026-02-02", "exercise_minutes": 30},
+                {"date": "2026-03-01", "exercise_minutes": 200},
+            ],
+        },
+    )
+    assert response.status_code == 200
+
+    default_state = api.get("/api/v1/competition?as_of_date=2026-12-31").json()
+    assert default_state["participants"][0]["total_minutes"] == 290
+
+    monthly_state = api.get(f"/api/v1/competitions/{monthly['id']}/state?as_of_date=2026-02-28").json()
+    assert monthly_state["participants"][0]["display_name"] == "February Runner"
+    assert monthly_state["participants"][0]["color"] == "#ff00ff"
+    assert monthly_state["participants"][0]["total_minutes"] == 50
+
+    hidden = api.patch(
+        f"/api/v1/admin/competitions/{monthly['id']}/participants/{participant['id']}",
+        headers=admin_headers(),
+        json={"active": False},
+    )
+    assert hidden.status_code == 200
+    assert hidden.json()["active"] is False
+    inactive_state = api.get(f"/api/v1/competitions/{monthly['id']}/state?as_of_date=2026-02-28").json()
+    assert inactive_state["participants"] == []
+
+    removed = api.delete(
+        f"/api/v1/admin/competitions/{monthly['id']}/participants/{participant['id']}",
+        headers=admin_headers(),
+    )
+    assert removed.status_code == 200
+    assert removed.json()["deleted"] is True
+    preserved = api.get("/api/v1/competition?as_of_date=2026-12-31").json()
+    assert preserved["participants"][0]["total_minutes"] == 290
+
+
+def test_admin_can_create_participant_inside_one_competition() -> None:
+    api = client()
+    monthly = create_competition(api)
+
+    membership = api.post(
+        f"/api/v1/admin/competitions/{monthly['id']}/participants",
+        headers=admin_headers(),
+        json={"display_name": "Monthly Runner", "color": "#3366ff"},
+    )
+
+    assert membership.status_code == 201
+    body = membership.json()
+    assert body["display_name"] == "Monthly Runner"
+    assert body["sync_token"]
+
+    default_state = api.get("/api/v1/competition?as_of_date=2026-02-28").json()
+    assert default_state["participants"] == []
+
+    monthly_state = api.get(f"/api/v1/competitions/{monthly['id']}/state?as_of_date=2026-02-28").json()
+    assert [participant["id"] for participant in monthly_state["participants"]] == [body["participant_id"]]
+
+
+def test_sync_me_and_sync_response_include_active_competition_memberships() -> None:
+    api = client()
+    participant = create_participant(api, "Runner")
+    monthly = create_competition(api)
+    archived = create_competition(
+        api,
+        name="Archived Minutes",
+        slug="archived-minutes",
+        start_date="2026-04-01",
+        end_date="2026-04-30",
+    )
+
+    for competition in [monthly, archived]:
+        added = api.post(
+            f"/api/v1/admin/competitions/{competition['id']}/participants",
+            headers=admin_headers(),
+            json={"participant_id": participant["id"]},
+        )
+        assert added.status_code == 201
+    archive = api.post(f"/api/v1/admin/competitions/{archived['id']}/archive", headers=admin_headers())
+    assert archive.status_code == 200
+
+    sync = api.post(
+        "/api/v1/sync/exercise-days",
+        headers={"Authorization": f"Bearer {participant['sync_token']}"},
+        json={
+            "device": {"name": "Participant iPhone", "app_version": "1.0.0", "ios_version": "18.0"},
+            "range": {"start_date": "2026-01-01", "end_date": "2026-02-02"},
+            "timezone_identifier": "America/New_York",
+            "days": [
+                {"date": "2026-01-01", "exercise_minutes": 40},
+                {"date": "2026-02-01", "exercise_minutes": 20},
+                {"date": "2026-02-02", "exercise_minutes": 30},
+            ],
+        },
+    )
+    assert sync.status_code == 200
+    sync_competitions = {item["slug"]: item for item in sync.json()["competitions"]}
+    assert set(sync_competitions) == {"default", "february-minutes"}
+    assert sync_competitions["default"]["total_minutes"] == 90
+    assert sync_competitions["february-minutes"]["total_minutes"] == 50
+
+    profile = api.get("/api/v1/sync/me", headers={"Authorization": f"Bearer {participant['sync_token']}"})
+    assert profile.status_code == 200
+    body = profile.json()
+    assert body["participant"]["id"] == participant["id"]
+    assert {item["slug"] for item in body["competitions"]} == {"default", "february-minutes"}
 
 
 def test_competition_ranking_and_sensor_payloads() -> None:
