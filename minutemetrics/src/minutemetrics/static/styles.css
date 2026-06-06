@@ -345,6 +345,26 @@ dd {
   font-weight: 800;
 }
 
+.secondary-button,
+.danger-button {
+  display: inline-grid;
+  min-height: 38px;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0 14px;
+  background: var(--panel);
+  color: var(--text);
+  font: inherit;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.danger-button {
+  border-color: color-mix(in srgb, var(--bad) 45%, var(--line));
+  color: var(--bad);
+}
+
 .admin-status {
   min-height: 20px;
   margin-top: 10px;
@@ -355,6 +375,97 @@ dd {
 .admin-status.error {
   color: var(--bad);
   font-weight: 700;
+}
+
+.admin-shell {
+  max-width: 980px;
+}
+
+.admin-gate {
+  margin-top: 16px;
+}
+
+.admin-workspace {
+  display: grid;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.admin-workspace[hidden] {
+  display: none;
+}
+
+.token-form {
+  grid-template-columns: minmax(220px, 1fr) auto;
+}
+
+.participant-create-form {
+  grid-template-columns: minmax(180px, 1fr) 88px auto;
+}
+
+.admin-list {
+  display: grid;
+  gap: 10px;
+}
+
+.admin-participant {
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-2);
+}
+
+.admin-participant-form {
+  display: grid;
+  grid-template-columns: 16px minmax(180px, 1fr) 88px auto;
+  gap: 12px;
+  align-items: end;
+}
+
+.admin-participant-form .swatch {
+  align-self: stretch;
+  height: auto;
+  min-height: 42px;
+}
+
+.admin-participant-form label {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 750;
+  text-transform: uppercase;
+}
+
+.admin-participant-form input {
+  width: 100%;
+  min-height: 38px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--field);
+  color: var(--text);
+  font: inherit;
+  text-transform: none;
+}
+
+.admin-participant-form input[type="text"] {
+  padding: 0 10px;
+}
+
+.admin-participant-form input[type="color"] {
+  padding: 3px;
+}
+
+.admin-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.danger-panel {
+  border-color: color-mix(in srgb, var(--bad) 35%, var(--line));
 }
 
 .pairing-dialog {
@@ -723,6 +834,22 @@ dd {
 
   .admin-form label.wide {
     grid-column: auto;
+  }
+
+  .token-form,
+  .participant-create-form,
+  .admin-participant-form {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-actions {
+    justify-content: stretch;
+  }
+
+  .admin-actions button,
+  .admin-actions .secondary-button,
+  .admin-actions .danger-button {
+    flex: 1;
   }
 
   .projection-svg {

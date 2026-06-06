@@ -139,6 +139,32 @@ class Store:
                 )
         return row_to_participant(self.get_participant(participant_id))
 
+    def delete_participant(self, participant_id: str) -> dict:
+        self.get_participant(participant_id)
+        with transaction(self.conn):
+            self.conn.execute("DELETE FROM sync_events WHERE participant_id = ?", (participant_id,))
+            self.conn.execute("DELETE FROM exercise_days WHERE participant_id = ?", (participant_id,))
+            self.conn.execute("DELETE FROM participants WHERE id = ?", (participant_id,))
+        return {"participant_id": participant_id, "deleted": True}
+
+    def clear_sync_data(self) -> dict:
+        with transaction(self.conn):
+            exercise_days = self.conn.execute("SELECT COUNT(*) AS count FROM exercise_days").fetchone()["count"]
+            sync_events = self.conn.execute("SELECT COUNT(*) AS count FROM sync_events").fetchone()["count"]
+            self.conn.execute("DELETE FROM exercise_days")
+            self.conn.execute("DELETE FROM sync_events")
+            self.conn.execute(
+                """
+                UPDATE participants
+                SET last_synced_at = NULL,
+                    last_sync_device_name = NULL,
+                    last_sync_app_version = NULL,
+                    updated_at = ?
+                """,
+                (iso_now(),),
+            )
+        return {"deleted_exercise_days": int(exercise_days), "deleted_sync_events": int(sync_events)}
+
     def patch_home_assistant_link(self, participant_id: str, payload: HomeAssistantLinkPatch) -> dict:
         self.get_participant(participant_id)
         with transaction(self.conn):

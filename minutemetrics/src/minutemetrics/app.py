@@ -79,6 +79,10 @@ def create_app(settings: Settings | None = None, conn: sqlite3.Connection | None
     def dashboard() -> FileResponse:
         return FileResponse(static_dir / "index.html")
 
+    @app.get("/admin", include_in_schema=False)
+    def admin_dashboard() -> FileResponse:
+        return FileResponse(static_dir / "admin.html")
+
     @app.get("/api/v1/app-config", response_model=AppConfigResponse)
     def app_config() -> dict:
         return {"server_url": settings.server_url}
@@ -103,6 +107,14 @@ def create_app(settings: Settings | None = None, conn: sqlite3.Connection | None
     )
     def patch_participant(participant_id: str, payload: ParticipantPatch) -> dict:
         return _not_found_guard(lambda: store.patch_participant(participant_id, payload), participant_id)
+
+    @app.delete("/api/v1/admin/participants/{participant_id}", dependencies=[Depends(require_admin)])
+    def delete_participant(participant_id: str) -> dict:
+        return _not_found_guard(lambda: store.delete_participant(participant_id), participant_id)
+
+    @app.delete("/api/v1/admin/data", dependencies=[Depends(require_admin)])
+    def clear_sync_data() -> dict:
+        return store.clear_sync_data()
 
     @app.patch(
         "/api/v1/admin/participants/{participant_id}/home-assistant-link",

@@ -1,6 +1,5 @@
 const state = {
   data: null,
-  appConfig: null,
 };
 
 const els = {
@@ -16,33 +15,12 @@ const els = {
   heatmap: document.querySelector("#heatmap"),
   refresh: document.querySelector("#refresh"),
   template: document.querySelector("#participantTemplate"),
-  participantForm: document.querySelector("#participantForm"),
-  adminToken: document.querySelector("#adminToken"),
-  participantName: document.querySelector("#participantName"),
-  participantColor: document.querySelector("#participantColor"),
-  serverUrl: document.querySelector("#serverUrl"),
-  adminStatus: document.querySelector("#adminStatus"),
-  pairingDialog: document.querySelector("#pairingDialog"),
-  pairingTitle: document.querySelector("#pairingTitle"),
-  qrFrame: document.querySelector("#qrFrame"),
-  closePairing: document.querySelector("#closePairing"),
 };
 
 els.refresh.addEventListener("click", () => load());
-els.participantForm.addEventListener("submit", (event) => createParticipant(event));
-els.closePairing.addEventListener("click", () => els.pairingDialog.close());
-els.adminToken.value = sessionStorage.getItem("minutemetrics.adminToken") || "";
 
-loadAppConfig().finally(() => load());
+load();
 setInterval(load, 60_000);
-
-async function loadAppConfig() {
-  const response = await fetch("api/v1/app-config", { cache: "no-store" });
-  if (response.ok) {
-    state.appConfig = await response.json();
-  }
-  els.serverUrl.value = pairingServerUrl();
-}
 
 async function load() {
   try {
@@ -55,77 +33,6 @@ async function load() {
     els.margin.textContent = "0 min";
     els.participants.innerHTML = `<div class="empty">${escapeHtml(error.message)}</div>`;
   }
-}
-
-async function createParticipant(event) {
-  event.preventDefault();
-  const adminToken = els.adminToken.value.trim();
-  const displayName = els.participantName.value.trim();
-  const serverUrl = pairingServerUrl();
-  if (!adminToken || !displayName) return;
-
-  sessionStorage.setItem("minutemetrics.adminToken", adminToken);
-  setAdminStatus("Creating participant...");
-  try {
-    const response = await fetch("api/v1/admin/participants", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${adminToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        display_name: displayName,
-        color: els.participantColor.value,
-      }),
-    });
-    const body = await readJson(response);
-    if (!response.ok) throw new Error(body.detail || `HTTP ${response.status}`);
-
-    await showPairingQR(body.display_name, serverUrl, body.sync_token, adminToken);
-    els.participantName.value = "";
-    setAdminStatus(`Created ${body.display_name}.`);
-    await load();
-  } catch (error) {
-    setAdminStatus(error.message, true);
-  }
-}
-
-async function showPairingQR(displayName, serverUrl, syncToken, adminToken) {
-  const response = await fetch("api/v1/admin/pairing-qr", {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${adminToken}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ server_url: serverUrl, sync_token: syncToken }),
-  });
-  if (!response.ok) {
-    const body = await readJson(response);
-    throw new Error(body.detail || `Unable to generate QR code (${response.status})`);
-  }
-
-  const svg = await response.text();
-  els.pairingTitle.textContent = displayName;
-  els.qrFrame.innerHTML = svg;
-  els.pairingDialog.showModal();
-}
-
-async function readJson(response) {
-  try {
-    return await response.json();
-  } catch {
-    return {};
-  }
-}
-
-function setAdminStatus(message, isError = false) {
-  els.adminStatus.textContent = message;
-  els.adminStatus.classList.toggle("error", isError);
-}
-
-function pairingServerUrl() {
-  const configured = state.appConfig?.server_url?.trim();
-  return configured || window.location.origin;
 }
 
 function render(data) {

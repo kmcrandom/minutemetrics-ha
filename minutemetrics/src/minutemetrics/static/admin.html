@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>MinuteMetrics Admin</title>
+    <link rel="stylesheet" href="static/styles.css">
+  </head>
+  <body>
+    <main class="shell admin-shell">
+      <section class="topline">
+        <div>
+          <p class="label">MinuteMetrics</p>
+          <h1>Admin</h1>
+        </div>
+        <a class="secondary-button" href=".">Dashboard</a>
+      </section>
+
+      <section class="panel admin-gate">
+        <div class="panel-head">
+          <h2>Access</h2>
+        </div>
+        <form class="admin-form token-form" id="tokenForm">
+          <label>
+            <span>Admin token</span>
+            <input id="adminToken" name="adminToken" type="password" autocomplete="current-password" required>
+          </label>
+          <button class="primary-button" type="submit">Unlock</button>
+        </form>
+        <p class="admin-status" id="adminStatus"></p>
+      </section>
+
+      <section class="admin-workspace" id="adminWorkspace" hidden>
+        <section class="panel">
+          <div class="panel-head">
+            <h2>Add Participant</h2>
+          </div>
+          <form class="admin-form participant-create-form" id="participantForm">
+            <label>
+              <span>Name</span>
+              <input id="participantName" name="participantName" type="text" autocomplete="off" required>
+            </label>
+            <label>
+              <span>Color</span>
+              <input id="participantColor" name="participantColor" type="color" value="#2f80ed" aria-label="Participant color">
+            </label>
+            <label class="wide">
+              <span>Pairing server URL</span>
+              <input id="serverUrl" name="serverUrl" type="url" readonly>
+            </label>
+            <button class="primary-button" type="submit">Create</button>
+          </form>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <h2>Participants</h2>
+            <button class="secondary-button" id="refreshParticipants" type="button">Refresh</button>
+          </div>
+          <div class="admin-list" id="adminParticipants"></div>
+        </section>
+
+        <section class="panel danger-panel">
+          <div class="panel-head">
+            <h2>Data</h2>
+          </div>
+          <button class="danger-button" id="clearData" type="button">Clear Sync Data</button>
+        </section>
+      </section>
+    </main>
+
+    <template id="adminParticipantTemplate">
+      <article class="admin-participant">
+        <form class="admin-participant-form">
+          <span class="swatch"></span>
+          <label>
+            <span>Name</span>
+            <input class="admin-participant-name" type="text" autocomplete="off" required>
+          </label>
+          <label>
+            <span>Color</span>
+            <input class="admin-participant-color" type="color" aria-label="Participant color">
+          </label>
+          <div class="admin-actions">
+            <button class="secondary-button save-participant" type="submit">Save</button>
+            <button class="secondary-button pair-participant" type="button">Pair</button>
+            <button class="danger-button delete-participant" type="button">Delete</button>
+          </div>
+        </form>
+        <p class="sync"></p>
+      </article>
+    </template>
+
+    <dialog class="pairing-dialog" id="pairingDialog">
+      <div class="pairing-head">
+        <div>
+          <p class="label">Pair iPhone</p>
+          <h2 id="pairingTitle">Scan QR Code</h2>
+        </div>
+        <button class="icon-button" id="closePairing" type="button" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="qr-frame" id="qrFrame"></div>
+      <p class="pairing-note">Open MinuteMetrics on the iPhone and scan this code to save the server URL and sync token.</p>
+    </dialog>
+
+    <script src="static/admin.js"></script>
+  </body>
+</html>

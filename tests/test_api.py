@@ -111,6 +111,12 @@ def test_dashboard_assets_are_served() -> None:
     assert "MinuteMetrics" in page.text
     assert "static/app.js" in page.text
     assert "No exercise minutes yet" in page.text
+    assert "participantForm" not in page.text
+
+    admin_page = api.get("/admin")
+    assert admin_page.status_code == 200
+    assert "Admin token" in admin_page.text
+    assert "static/admin.js" in admin_page.text
 
     script = api.get("/static/app.js")
     assert script.status_code == 200
@@ -205,6 +211,49 @@ def test_home_assistant_link_can_be_changed_and_cleared_without_losing_data() ->
 
     state = api.get("/api/v1/competition").json()
     assert state["participants"][0]["total_minutes"] == 55
+
+
+def test_admin_can_update_and_delete_participant() -> None:
+    api = client()
+    participant = create_participant(api, "Runner")
+
+    updated = api.patch(
+        f"/api/v1/admin/participants/{participant['id']}",
+        headers=admin_headers(),
+        json={"display_name": "Runner Prime", "color": "#ff8800"},
+    )
+    assert updated.status_code == 200
+    assert updated.json()["display_name"] == "Runner Prime"
+    assert updated.json()["color"] == "#ff8800"
+
+    deleted = api.delete(f"/api/v1/admin/participants/{participant['id']}", headers=admin_headers())
+    assert deleted.status_code == 200
+    assert deleted.json()["deleted"] is True
+
+    participants = api.get("/api/v1/admin/participants", headers=admin_headers())
+    assert participants.status_code == 200
+    assert participants.json() == []
+
+
+def test_admin_can_clear_sync_data_without_deleting_participants() -> None:
+    api = client()
+    participant = create_participant(api, "Runner")
+    sync = api.post(
+        "/api/v1/sync/exercise-days",
+        headers={"Authorization": f"Bearer {participant['sync_token']}"},
+        json=sync_payload(minutes=45),
+    )
+    assert sync.status_code == 200
+
+    cleared = api.delete("/api/v1/admin/data", headers=admin_headers())
+    assert cleared.status_code == 200
+    assert cleared.json()["deleted_exercise_days"] == 2
+    assert cleared.json()["deleted_sync_events"] == 1
+
+    state = api.get("/api/v1/competition").json()
+    assert len(state["participants"]) == 1
+    assert state["participants"][0]["total_minutes"] == 0
+    assert state["participants"][0]["last_synced_at"] is None
 
 
 def test_sync_requires_participant_token_and_upserts_days() -> None:
