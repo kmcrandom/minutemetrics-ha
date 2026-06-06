@@ -9,12 +9,12 @@ The Home Assistant app stores participant Exercise Minutes, exposes an API for t
 - Installable as a Home Assistant local app and later as a repository app.
 - Configurable without code changes.
 - Persistent SQLite storage under `/data`.
-- Admin UI for participant management, with API support for automation.
+- Admin UI for competition and participant management, with API support for automation.
 - Token-based participant authentication.
 - Dashboard served from the app.
 - Optional Home Assistant sensor publishing.
 - Public installs use a pre-built GHCR image rather than building on the Home Assistant device.
-- Participants can be created from the Home Assistant app UI without command-line access.
+- Competitions and participants can be created from the Home Assistant app UI without command-line access.
 - Participant creation shows a QR code containing the configured server URL and generated sync token.
 
 ## App Configuration
@@ -24,10 +24,6 @@ Example:
 ```yaml
 auth:
   admin_token: "replace-with-a-long-random-token"
-competition:
-  name: "Exercise Minutes"
-  start_date: "2026-01-01"
-  end_date: "2026-12-31"
 database:
   path: "/data/minutemetrics.sqlite"
 dashboard:
@@ -39,7 +35,7 @@ network:
   server_url: "https://minutemetrics.example.com"
 ```
 
-Participants should be created through the dashboard admin view or API, not hardcoded in YAML.
+Competitions and participants should be created through the dashboard admin view or API, not hardcoded in YAML.
 
 The `network.server_url` option is the URL embedded in iOS setup QR codes. It should be the externally reachable MinuteMetrics API origin, such as a reverse-proxied HTTPS URL.
 
@@ -87,6 +83,7 @@ Additional local endpoints:
 
 ## Admin Features
 
+- Create, edit, archive, restore, and select competitions.
 - Create participant.
 - Show pairing QR code after participant creation.
 - Edit participant display name.

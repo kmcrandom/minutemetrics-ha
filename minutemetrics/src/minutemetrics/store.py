@@ -91,64 +91,39 @@ def row_to_membership(row: sqlite3.Row, sync_token: str | None = None) -> dict:
 
 
 class Store:
-    def __init__(
-        self,
-        conn: sqlite3.Connection,
-        competition_name: str,
-        start_date: str | None = None,
-        end_date: str | None = None,
-    ) -> None:
+    def __init__(self, conn: sqlite3.Connection) -> None:
         self.conn = conn
-        self.competition_name = competition_name
-        self.configured_start_date = start_date
-        self.configured_end_date = end_date
-        self.ensure_default_competition()
+        self.ensure_existing_competition_defaults()
 
-    def ensure_default_competition(self) -> None:
-        current_year = date.today().year
-        start = self.configured_start_date or date(current_year, 1, 1).isoformat()
-        end = self.configured_end_date or date(current_year, 12, 31).isoformat()
-        now = iso_now()
+    def ensure_existing_competition_defaults(self) -> None:
         with transaction(self.conn):
-            count = self.conn.execute("SELECT COUNT(*) AS count FROM competitions").fetchone()["count"]
-            if int(count) == 0:
+            self._ensure_default_setting()
+            default_competition_id = self.default_competition_id_or_none()
+            if default_competition_id is not None:
                 self.conn.execute(
                     """
-                    INSERT INTO competitions
-                      (id, name, slug, start_date, end_date, status, timezone_policy, created_at, updated_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    INSERT OR IGNORE INTO competition_memberships (
+                      competition_id, participant_id, active, joined_at, created_at, updated_at
+                    )
+                    SELECT ?, id, active, created_at, created_at, updated_at
+                    FROM participants
                     """,
-                    (
-                        "default",
-                        self.competition_name,
-                        "default",
-                        start,
-                        end,
-                        "active",
-                        "participant_local_day",
-                        now,
-                        now,
-                    ),
+                    (default_competition_id,),
                 )
-            self._ensure_default_setting()
-            self.conn.execute(
-                """
-                INSERT OR IGNORE INTO competition_memberships (
-                  competition_id, participant_id, active, joined_at, created_at, updated_at
-                )
-                SELECT ?, id, active, created_at, created_at, updated_at
-                FROM participants
-                """,
-                (self.default_competition_id(),),
-            )
 
     def competition(self) -> sqlite3.Row:
         return self.get_competition_row(self.default_competition_id())
 
     def default_competition_id(self) -> str:
+        row = self.default_competition_id_or_none()
+        if row is None:
+            raise KeyError("default_competition_id")
+        return row
+
+    def default_competition_id_or_none(self) -> str | None:
         self._ensure_default_setting()
         row = self.conn.execute("SELECT value FROM settings WHERE key = ?", ("default_competition_id",)).fetchone()
-        return row["value"] if row is not None else "default"
+        return row["value"] if row is not None else None
 
     def _ensure_default_setting(self) -> None:
         row = self.conn.execute("SELECT value FROM settings WHERE key = ?", ("default_competition_id",)).fetchone()
@@ -226,7 +201,7 @@ class Store:
             ORDER BY c.start_date DESC, c.created_at DESC, c.name
             """
         ).fetchall()
-        default_competition_id = self.default_competition_id()
+        default_competition_id = self.default_competition_id_or_none() or ""
         return [row_to_competition(row, default_competition_id, int(row["participant_count"])) for row in rows]
 
     def create_competition(self, payload: CompetitionCreate) -> dict:
@@ -483,15 +458,17 @@ class Store:
                     now,
                 ),
             )
-            self.conn.execute(
-                """
-                INSERT OR IGNORE INTO competition_memberships (
-                  competition_id, participant_id, active, joined_at, created_at, updated_at
+            default_competition_id = self.default_competition_id_or_none()
+            if default_competition_id is not None:
+                self.conn.execute(
+                    """
+                    INSERT OR IGNORE INTO competition_memberships (
+                      competition_id, participant_id, active, joined_at, created_at, updated_at
+                    )
+                    VALUES (?, ?, 1, ?, ?, ?)
+                    """,
+                    (default_competition_id, participant_id, now, now, now),
                 )
-                VALUES (?, ?, 1, ?, ?, ?)
-                """,
-                (self.default_competition_id(), participant_id, now, now, now),
-            )
         return row_to_participant(self.get_participant(participant_id), sync_token=token)
 
     def list_participants(self) -> list[dict]:
@@ -875,7 +852,10 @@ class Store:
         return series
 
     def sensor_payloads(self) -> list[dict]:
-        state = self.competition_state()
+        try:
+            state = self.competition_state()
+        except KeyError:
+            return []
         payloads = []
         for participant in state["participants"]:
             base_attrs = {

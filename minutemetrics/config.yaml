@@ -1,6 +1,6 @@
 ---
 name: MinuteMetrics
-version: "0.2.2"
+version: "0.2.3"
 slug: minutemetrics
 description: Apple Health exercise-minute competition tracker
 url: https://github.com/kmcrandom/minutemetrics-ha
@@ -22,10 +22,6 @@ ports_description:
 options:
   auth:
     admin_token: change-me-before-use
-  competition:
-    name: Exercise Minutes
-    start_date: ""
-    end_date: ""
   database:
     path: /data/minutemetrics.sqlite
   dashboard:
@@ -38,10 +34,6 @@ options:
 schema:
   auth:
     admin_token: password
-  competition:
-    name: str
-    start_date: "match(^$|^\\d{4}-\\d{2}-\\d{2}$)?"
-    end_date: "match(^$|^\\d{4}-\\d{2}-\\d{2}$)?"
   database:
     path: str
   dashboard:

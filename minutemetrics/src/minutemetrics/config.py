@@ -11,15 +11,11 @@ from typing import Any
 class Settings:
     db_path: str
     admin_token: str
-    competition_name: str
-    competition_start_date: str | None = None
-    competition_end_date: str | None = None
     server_url: str | None = None
 
 
 def load_settings() -> Settings:
     options = _load_app_options()
-    competition = options.get("competition", {})
     auth = options.get("auth", {})
     database = options.get("database", {})
     network = options.get("network", {})
@@ -32,16 +28,6 @@ def load_settings() -> Settings:
         admin_token=os.environ.get(
             "MINUTEMETRICS_ADMIN_TOKEN",
             auth.get("admin_token") or "change-me-before-use",
-        ),
-        competition_name=os.environ.get(
-            "MINUTEMETRICS_COMPETITION_NAME",
-            competition.get("name") or "Exercise Minutes",
-        ),
-        competition_start_date=_optional_string(
-            os.environ.get("MINUTEMETRICS_COMPETITION_START_DATE", competition.get("start_date"))
-        ),
-        competition_end_date=_optional_string(
-            os.environ.get("MINUTEMETRICS_COMPETITION_END_DATE", competition.get("end_date"))
         ),
         server_url=_optional_string(os.environ.get("MINUTEMETRICS_SERVER_URL", network.get("server_url"))),
     )

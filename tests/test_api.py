@@ -14,13 +14,22 @@ from minutemetrics.db import connect
 ADMIN_TOKEN = "test-admin-token"
 
 
-def client() -> TestClient:
+def client(create_default_competition: bool = True) -> TestClient:
     conn = connect(":memory:")
     app = create_app(
-        Settings(db_path=":memory:", admin_token=ADMIN_TOKEN, competition_name="Test Minutes"),
+        Settings(db_path=":memory:", admin_token=ADMIN_TOKEN),
         conn=conn,
     )
-    return TestClient(app)
+    api = TestClient(app)
+    if create_default_competition:
+        create_competition(
+            api,
+            name="Test Minutes",
+            slug="test-minutes",
+            start_date="2026-01-01",
+            end_date="2026-12-31",
+        )
+    return api
 
 
 def admin_headers() -> dict[str, str]:
@@ -84,55 +93,52 @@ def test_health() -> None:
     assert response.json()["status"] == "ok"
 
 
-def test_configured_competition_metadata() -> None:
+def test_fresh_install_starts_without_competitions() -> None:
+    api = client(create_default_competition=False)
+
+    competitions = api.get("/api/v1/competitions")
+    assert competitions.status_code == 200
+    assert competitions.json() == []
+
+    state = api.get("/api/v1/competition")
+    assert state.status_code == 404
+
+    sensors = api.get("/api/v1/home-assistant/sensors", headers=admin_headers())
+    assert sensors.status_code == 200
+    assert sensors.json() == []
+
+    participant = create_participant(api, "Unassigned Runner")
+    assert participant["display_name"] == "Unassigned Runner"
+
+    sync = api.post(
+        "/api/v1/sync/exercise-days",
+        headers={"Authorization": f"Bearer {participant['sync_token']}"},
+        json=sync_payload(minutes=20),
+    )
+    assert sync.status_code == 200
+    assert sync.json()["total_minutes"] == 30
+    assert sync.json()["competitions"] == []
+
+    competition = create_competition(api, name="Configured Minutes", slug="configured-minutes")
+    assert competition["name"] == "Configured Minutes"
+    assert competition["is_default"] is True
+
+
+def test_existing_competition_survives_app_restart() -> None:
     conn = connect(":memory:")
-    app = create_app(
-        Settings(
-            db_path=":memory:",
-            admin_token=ADMIN_TOKEN,
-            competition_name="Configured Minutes",
-            competition_start_date="2026-02-01",
-            competition_end_date="2026-11-30",
-        ),
-        conn=conn,
-    )
+    app = create_app(Settings(db_path=":memory:", admin_token=ADMIN_TOKEN), conn=conn)
     api = TestClient(app)
-
-    response = api.get("/api/v1/competition")
-
-    assert response.status_code == 200
-    assert response.json()["competition"]["name"] == "Configured Minutes"
-    assert response.json()["competition"]["start_date"] == "2026-02-01"
-    assert response.json()["competition"]["end_date"] == "2026-11-30"
-    assert response.json()["competition"]["slug"] == "default"
-    assert response.json()["competition"]["status"] == "active"
-
-
-def test_existing_competition_is_not_overwritten_by_later_settings() -> None:
-    conn = connect(":memory:")
-    create_app(
-        Settings(
-            db_path=":memory:",
-            admin_token=ADMIN_TOKEN,
-            competition_name="Original Minutes",
-            competition_start_date="2026-01-01",
-            competition_end_date="2026-12-31",
-        ),
-        conn=conn,
+    create_competition(
+        api,
+        name="Original Minutes",
+        slug="original-minutes",
+        start_date="2026-01-01",
+        end_date="2026-12-31",
     )
-    app = create_app(
-        Settings(
-            db_path=":memory:",
-            admin_token=ADMIN_TOKEN,
-            competition_name="Changed Minutes",
-            competition_start_date="2026-02-01",
-            competition_end_date="2026-11-30",
-        ),
-        conn=conn,
-    )
-    api = TestClient(app)
 
-    response = api.get("/api/v1/competition")
+    restarted = create_app(Settings(db_path=":memory:", admin_token=ADMIN_TOKEN), conn=conn)
+    restarted_api = TestClient(restarted)
+    response = restarted_api.get("/api/v1/competition")
 
     assert response.status_code == 200
     assert response.json()["competition"]["name"] == "Original Minutes"
@@ -146,7 +152,6 @@ def test_app_config_exposes_pairing_server_url() -> None:
         Settings(
             db_path=":memory:",
             admin_token=ADMIN_TOKEN,
-            competition_name="Test Minutes",
             server_url="https://minutemetrics.example.test",
         ),
         conn=conn,
@@ -357,16 +362,11 @@ def test_sync_requires_participant_token_and_upserts_days() -> None:
 def test_competition_state_filters_totals_to_competition_date_range() -> None:
     conn = connect(":memory:")
     app = create_app(
-        Settings(
-            db_path=":memory:",
-            admin_token=ADMIN_TOKEN,
-            competition_name="February Minutes",
-            competition_start_date="2026-02-01",
-            competition_end_date="2026-02-28",
-        ),
+        Settings(db_path=":memory:", admin_token=ADMIN_TOKEN),
         conn=conn,
     )
     api = TestClient(app)
+    create_competition(api)
     participant = create_participant(api)
 
     response = api.post(
@@ -442,6 +442,7 @@ def test_competition_state_accepts_naive_sqlite_sync_timestamps() -> None:
 
 def test_competition_api_archiving_default_switching_and_fallback() -> None:
     api = client()
+    default_id = api.get("/api/v1/competition?as_of_date=2026-12-31").json()["competition"]["id"]
 
     monthly = create_competition(api)
     assert monthly["participant_count"] == 0
@@ -507,7 +508,7 @@ def test_competition_api_archiving_default_switching_and_fallback() -> None:
     api.app.state.store.conn.commit()
     fallback = api.get("/api/v1/competition?as_of_date=2026-12-31")
     assert fallback.status_code == 200
-    assert fallback.json()["competition"]["id"] == "default"
+    assert fallback.json()["competition"]["id"] == default_id
 
 
 def test_competition_memberships_reuse_health_data_with_overrides_and_removal() -> None:
@@ -634,15 +635,15 @@ def test_sync_me_and_sync_response_include_active_competition_memberships() -> N
     )
     assert sync.status_code == 200
     sync_competitions = {item["slug"]: item for item in sync.json()["competitions"]}
-    assert set(sync_competitions) == {"default", "february-minutes"}
-    assert sync_competitions["default"]["total_minutes"] == 90
+    assert set(sync_competitions) == {"test-minutes", "february-minutes"}
+    assert sync_competitions["test-minutes"]["total_minutes"] == 90
     assert sync_competitions["february-minutes"]["total_minutes"] == 50
 
     profile = api.get("/api/v1/sync/me", headers={"Authorization": f"Bearer {participant['sync_token']}"})
     assert profile.status_code == 200
     body = profile.json()
     assert body["participant"]["id"] == participant["id"]
-    assert {item["slug"] for item in body["competitions"]} == {"default", "february-minutes"}
+    assert {item["slug"] for item in body["competitions"]} == {"test-minutes", "february-minutes"}
 
 
 def test_competition_ranking_and_sensor_payloads() -> None:

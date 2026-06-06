@@ -49,6 +49,10 @@ setInterval(load, 60_000);
 async function load() {
   try {
     await loadCompetitions();
+    if (!state.competitions.length) {
+      renderNoCompetitions();
+      return;
+    }
     const response = await fetch(competitionStateUrl(), { cache: "no-store" });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     state.data = await response.json();
@@ -59,6 +63,7 @@ async function load() {
   } catch (error) {
     els.leaderName.textContent = "Unable to load";
     els.margin.textContent = "0 min";
+    renderCompetitionSelect();
     els.participants.innerHTML = `<div class="empty">${escapeHtml(error.message)}</div>`;
   }
 }
@@ -96,6 +101,22 @@ function renderCompetitionSelect() {
   els.competitionSelect.parentElement.hidden = state.competitions.length <= 1;
 }
 
+function renderNoCompetitions() {
+  state.selectedCompetitionId = "";
+  localStorage.removeItem("minutemetrics.selectedCompetitionId");
+  renderCompetitionSelect();
+  els.title.textContent = "MinuteMetrics";
+  els.range.textContent = "No competitions yet";
+  els.leaderName.textContent = "Create a competition";
+  els.margin.textContent = "0 min";
+  els.emptyState.hidden = false;
+  els.participants.replaceChildren(emptyMessage("Create a competition from the Admin page to start tracking participants."));
+  els.projectionChart.replaceChildren(emptyMessage("No competition selected."));
+  els.projectionLegend.replaceChildren();
+  els.bars.replaceChildren(emptyMessage("No competition selected."));
+  els.heatmap.replaceChildren(emptyMessage("No competition selected."));
+}
+
 function selectCompetition(competitionId) {
   state.selectedCompetitionId = competitionId;
   localStorage.setItem("minutemetrics.selectedCompetitionId", competitionId);
@@ -125,10 +146,7 @@ function render(data) {
 function renderParticipants(participants) {
   els.participants.replaceChildren();
   if (!participants.length) {
-    const empty = document.createElement("div");
-    empty.className = "empty";
-    empty.textContent = "No participants synced yet.";
-    els.participants.append(empty);
+    els.participants.append(emptyMessage("No participants synced yet."));
     return;
   }
 
@@ -666,4 +684,11 @@ function escapeHtml(value) {
     "\"": "&quot;",
     "'": "&#039;",
   })[char]);
+}
+
+function emptyMessage(message) {
+  const empty = document.createElement("div");
+  empty.className = "empty";
+  empty.textContent = message;
+  return empty;
 }

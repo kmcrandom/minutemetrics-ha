@@ -7,9 +7,9 @@ MinuteMetrics receives Apple Health Exercise Minutes from paired iOS devices, st
 - Participant-based sync using per-participant bearer tokens.
 - Persistent SQLite storage under `/data`.
 - Home Assistant ingress dashboard.
-- Configurable competition name and date range.
+- Multiple admin-managed competitions with independent date ranges.
 - Optional Home Assistant user or `person` entity links for participants.
-- Admin API for participant creation, editing, token rotation, and sensor payloads.
+- Admin dashboard and API for competition management, participant management, token rotation, and sensor payloads.
 
 ## Installation
 
@@ -21,6 +21,7 @@ Published installs use the pre-built GHCR image declared in `config.yaml`:
 4. Open the Configuration tab.
 5. Change `auth.admin_token` from `change-me-before-use` to a long private value.
 6. Start the app.
+7. Open the Admin page and create your first competition.
 
 The SQLite database is stored at `/data/minutemetrics.sqlite` by default and persists across app restarts and upgrades.
 
@@ -31,10 +32,6 @@ Example app options:
 ```yaml
 auth:
   admin_token: "replace-with-a-long-random-token"
-competition:
-  name: "Exercise Minutes"
-  start_date: "2026-01-01"
-  end_date: "2026-12-31"
 database:
   path: "/data/minutemetrics.sqlite"
 dashboard:
@@ -62,13 +59,13 @@ The API will listen on `http://0.0.0.0:8080` by default.
 
 For local Home Assistant testing before a container image has been published, copy this `minutemetrics` directory to the Home Assistant local apps directory and temporarily remove the `image` field from the copied `config.yaml` so Supervisor builds the local Dockerfile.
 
-## Create a Participant
+## Create a Competition and Participant
 
-Open the MinuteMetrics dashboard in Home Assistant and use the Participants form:
+Open the MinuteMetrics Admin page in Home Assistant:
 
 1. Enter the configured admin token.
-2. Enter the participant name and color.
-3. Select Create.
+2. Create a competition with a name, slug, start date, and end date.
+3. Add a participant to the competition.
 4. Scan the displayed QR code with the MinuteMetrics iOS app.
 
 The QR code contains the configured server URL and the participant sync token. The sync token is shown only at pairing time and should be treated as a private credential.

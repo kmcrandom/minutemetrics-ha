@@ -1,5 +1,12 @@
 # MinuteMetrics Changelog
 
+## 0.2.3
+
+- Removed competition setup from Home Assistant app configuration.
+- Kept fresh installs stable when no competitions exist yet.
+- Added dashboard empty state guidance for creating the first competition from Admin.
+- Kept participant sync and Home Assistant sensor payloads from failing before a competition is created.
+
 ## 0.2.2
 
 - Added versioned dashboard asset URLs to prevent stale Home Assistant webview JavaScript.

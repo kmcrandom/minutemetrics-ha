@@ -53,12 +53,7 @@ def create_app(settings: Settings | None = None, conn: sqlite3.Connection | None
     settings = settings or load_settings()
     db_conn = conn or connect(settings.db_path)
     init_db(db_conn)
-    store = Store(
-        db_conn,
-        settings.competition_name,
-        start_date=settings.competition_start_date,
-        end_date=settings.competition_end_date,
-    )
+    store = Store(db_conn)
 
     app = FastAPI(title="MinuteMetrics", version=__version__)
     app.state.store = store
@@ -264,7 +259,7 @@ def create_app(settings: Settings | None = None, conn: sqlite3.Connection | None
 
     @app.get("/api/v1/competition", response_model=CompetitionState)
     def competition_state(as_of_date: date | None = None) -> dict:
-        return store.competition_state(as_of_date=as_of_date.isoformat() if as_of_date else None)
+        return _store_guard(lambda: store.competition_state(as_of_date=as_of_date.isoformat() if as_of_date else None))
 
     @app.get("/api/v1/competitions", response_model=list[CompetitionResponse])
     def public_list_competitions() -> list[dict]:

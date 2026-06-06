@@ -1,11 +1,1 @@
-configuration:
-  competition:
-    name: Competition
-    description: Competition display name and date range.
-    fields:
-      start_date:
-        name: Start date
-        description: YYYY-MM-DD
-      end_date:
-        name: End date
-        description: YYYY-MM-DD
+configuration: {}
