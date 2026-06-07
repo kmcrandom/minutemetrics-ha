@@ -1,5 +1,14 @@
 # MinuteMetrics Changelog
 
+## 0.2.6
+
+- Added private dashboard data access for Home Assistant ingress, dashboard tokens, admin tokens, and participant-scoped sync tokens.
+- Added `auth.dashboard_token` configuration for read-only standalone dashboard access.
+- Restructured Admin into overview, competition detail, participant detail, and add-competition pages.
+- Hid the Admin access section after unlock and added a clear admin token control.
+- Updated dashboard token handling and unauthorized dashboard empty states.
+- Updated SDD specs and repo instructions for spec-driven changes.
+
 ## 0.2.5
 
 - Added public App Store marketing and support pages.
