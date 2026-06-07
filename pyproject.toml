@@ -1,6 +1,6 @@
 [project]
 name = "minutemetrics"
-version = "0.2.3"
+version = "0.2.4"
 description = "Apple Health exercise-minute competition service for Home Assistant."
 requires-python = ">=3.11"
 dependencies = [

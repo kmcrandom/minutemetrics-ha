@@ -441,7 +441,8 @@ dd {
 }
 
 .member-create-form {
-  grid-template-columns: minmax(170px, 1fr) minmax(150px, 1fr) 88px minmax(220px, 1fr) minmax(210px, 1fr) auto;
+  grid-template-columns: minmax(180px, 1.2fr) minmax(170px, 1fr) 88px minmax(220px, 1fr) auto;
+  margin-bottom: 16px;
 }
 
 .competition-list {

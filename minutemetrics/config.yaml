@@ -1,6 +1,6 @@
 ---
 name: MinuteMetrics
-version: "0.2.3"
+version: "0.2.4"
 slug: minutemetrics
 description: Apple Health exercise-minute competition tracker
 url: https://github.com/kmcrandom/minutemetrics-ha

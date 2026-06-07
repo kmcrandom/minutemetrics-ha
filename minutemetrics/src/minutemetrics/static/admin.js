@@ -7,7 +7,6 @@ const state = {
 };
 
 const DEFAULT_COLORS = [
-  "#0f766e",
   "#2563eb",
   "#7c3aed",
   "#db2777",
@@ -17,7 +16,7 @@ const DEFAULT_COLORS = [
   "#eab308",
   "#16a34a",
   "#0891b2",
-  "#4b5563",
+  "#0f766e",
 ];
 
 const els = {
@@ -38,7 +37,6 @@ const els = {
   memberName: document.querySelector("#memberName"),
   memberColor: document.querySelector("#memberColor"),
   memberColorPresets: document.querySelector("#memberColorPresets"),
-  serverUrl: document.querySelector("#serverUrl"),
   members: document.querySelector("#competitionMembers"),
   participants: document.querySelector("#adminParticipants"),
   refreshAdmin: document.querySelector("#refreshAdmin"),
@@ -75,7 +73,6 @@ async function loadAppConfig() {
   if (response.ok) {
     state.appConfig = await response.json();
   }
-  els.serverUrl.value = pairingServerUrl();
 }
 
 async function unlock(event) {
@@ -597,7 +594,10 @@ function adminHeaders(extra = {}) {
 
 function pairingServerUrl() {
   const configured = state.appConfig?.server_url?.trim();
-  return configured || window.location.origin;
+  if (!configured) {
+    throw new Error("Set network.server_url in the Home Assistant app configuration before pairing.");
+  }
+  return configured;
 }
 
 function setStatus(message, isError = false) {

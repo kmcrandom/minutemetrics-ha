@@ -1,5 +1,12 @@
 # MinuteMetrics Changelog
 
+## 0.2.4
+
+- Fixed a flaky default competition fallback test in CI.
+- Renamed Admin competition membership fields to participant name and participant color.
+- Removed the Admin pairing server URL field and now require `network.server_url` from app configuration for pairing QR codes.
+- Updated Admin participant color presets.
+
 ## 0.2.3
 
 - Removed competition setup from Home Assistant app configuration.
