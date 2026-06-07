@@ -324,6 +324,88 @@ dd {
   margin-top: 16px;
 }
 
+.public-shell {
+  max-width: 940px;
+}
+
+.public-hero {
+  padding: 30px 0 22px;
+}
+
+.public-hero.compact {
+  padding-bottom: 16px;
+}
+
+.public-hero h1 {
+  max-width: 780px;
+  margin-top: 8px;
+}
+
+.public-hero p {
+  max-width: 760px;
+  margin-top: 14px;
+  color: var(--muted);
+  font-size: 18px;
+  line-height: 1.5;
+}
+
+.public-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.public-actions .primary-button {
+  display: inline-grid;
+  place-items: center;
+  text-decoration: none;
+}
+
+.public-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.public-grid .panel,
+.public-section {
+  line-height: 1.5;
+}
+
+.public-grid h2,
+.public-section h2 {
+  margin-bottom: 10px;
+  font-size: 18px;
+}
+
+.public-grid p,
+.public-section p,
+.public-grid li,
+.public-section li {
+  color: var(--muted);
+}
+
+.public-grid ul,
+.public-section ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.public-grid li + li,
+.public-section li + li {
+  margin-top: 7px;
+}
+
+.public-section {
+  margin-top: 14px;
+}
+
+.public-section a {
+  color: var(--accent);
+  font-weight: 750;
+}
+
 .admin-form {
   display: grid;
   grid-template-columns: minmax(180px, 1fr) minmax(160px, 1fr) 72px auto;
@@ -588,7 +670,7 @@ dd {
 
 .color-presets legend {
   grid-column: 1 / -1;
-  margin: 0;
+  margin: 0 0 3px;
   color: var(--muted);
   font-size: 12px;
   font-weight: 750;
@@ -1019,6 +1101,10 @@ dd {
   }
 
   .empty-state {
+    grid-template-columns: 1fr;
+  }
+
+  .public-grid {
     grid-template-columns: 1fr;
   }
 

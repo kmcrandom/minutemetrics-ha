@@ -7,7 +7,7 @@ from collections.abc import Callable
 from pathlib import Path
 from urllib.parse import urlencode
 
-from fastapi import Depends, FastAPI, Header, HTTPException, status
+from fastapi import Depends, FastAPI, Header, HTTPException, Request, status
 from fastapi.responses import HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 import qrcode
@@ -86,12 +86,22 @@ def create_app(settings: Settings | None = None, conn: sqlite3.Connection | None
         return {"status": "ok", "version": __version__}
 
     @app.get("/", include_in_schema=False)
+    def root(request: Request) -> HTMLResponse:
+        if _is_public_marketing_host(request):
+            return versioned_html(static_dir / "marketing.html")
+        return versioned_html(static_dir / "index.html")
+
+    @app.get("/dashboard", include_in_schema=False)
     def dashboard() -> HTMLResponse:
         return versioned_html(static_dir / "index.html")
 
     @app.get("/admin", include_in_schema=False)
     def admin_dashboard() -> HTMLResponse:
         return versioned_html(static_dir / "admin.html")
+
+    @app.get("/support", include_in_schema=False)
+    def support() -> HTMLResponse:
+        return versioned_html(static_dir / "support.html")
 
     @app.get("/api/v1/app-config", response_model=AppConfigResponse)
     def app_config() -> dict:
@@ -315,6 +325,11 @@ def versioned_html(path: Path) -> HTMLResponse:
     for asset in ("static/styles.css", "static/app.js", "static/admin.js"):
         content = content.replace(f'"{asset}"', f'"{asset}?v={__version__}"')
     return HTMLResponse(content)
+
+
+def _is_public_marketing_host(request: Request) -> bool:
+    host = request.headers.get("host", "").split(":", 1)[0].lower()
+    return host == "minutemetrics.kmcleod.com"
 
 
 def pairing_url(server_url: str, sync_token: str) -> str:

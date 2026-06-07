@@ -1,5 +1,12 @@
 # MinuteMetrics Changelog
 
+## 0.2.5
+
+- Added public App Store marketing and support pages.
+- Added `/dashboard` as an explicit dashboard route while keeping `/admin` unchanged.
+- Served the marketing page at `/` for `minutemetrics.kmcleod.com` without changing the Home Assistant dashboard root.
+- Added spacing between the Admin default color label and color presets.
+
 ## 0.2.4
 
 - Fixed a flaky default competition fallback test in CI.

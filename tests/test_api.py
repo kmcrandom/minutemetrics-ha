@@ -189,6 +189,26 @@ def test_dashboard_assets_are_served() -> None:
     assert "api/v1/competition" in script.text
 
 
+def test_public_app_store_pages_are_served() -> None:
+    api = client()
+
+    marketing = api.get("/", headers={"Host": "minutemetrics.kmcleod.com"})
+    assert marketing.status_code == 200
+    assert "Apple Health exercise-minute competitions" in marketing.text
+    assert f"static/styles.css?v={__version__}" in marketing.text
+    assert "static/app.js" not in marketing.text
+
+    dashboard = api.get("/dashboard", headers={"Host": "minutemetrics.kmcleod.com"})
+    assert dashboard.status_code == 200
+    assert "No exercise minutes yet" in dashboard.text
+    assert f"static/app.js?v={__version__}" in dashboard.text
+
+    support = api.get("/support")
+    assert support.status_code == 200
+    assert "MinuteMetrics Support" in support.text
+    assert "github.com/kmcrandom/minutemetrics-ha/issues" in support.text
+
+
 def test_admin_token_required() -> None:
     api = client()
     response = api.get("/api/v1/admin/participants")

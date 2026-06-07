@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>MinuteMetrics Support</title>
+    <meta name="description" content="Support information for MinuteMetrics for iOS and Home Assistant.">
+    <link rel="stylesheet" href="static/styles.css">
+  </head>
+  <body>
+    <main class="shell public-shell">
+      <section class="public-hero compact">
+        <p class="label">MinuteMetrics Support</p>
+        <h1>Help with setup, pairing, syncing, and privacy.</h1>
+        <p>
+          MinuteMetrics syncs Apple Health Exercise Minutes from the iOS app to your own
+          Home Assistant add-on for private competitions.
+        </p>
+        <div class="public-actions">
+          <a class="secondary-button" href="/">Marketing</a>
+          <a class="secondary-button" href="dashboard">Dashboard</a>
+        </div>
+      </section>
+
+      <section class="public-grid">
+        <article class="panel">
+          <h2>Setup Checklist</h2>
+          <ul>
+            <li>Install the MinuteMetrics Home Assistant add-on.</li>
+            <li>Set a private admin token in the add-on Configuration tab.</li>
+            <li>Set `network.server_url` to the HTTPS URL reachable by iPhones.</li>
+            <li>Create a competition and participant from the Admin page.</li>
+            <li>Scan the participant QR code in the MinuteMetrics iOS app.</li>
+          </ul>
+        </article>
+
+        <article class="panel">
+          <h2>Sync Troubleshooting</h2>
+          <ul>
+            <li>Confirm the iPhone can open the configured `network.server_url`.</li>
+            <li>Confirm Cloudflare or any reverse proxy forwards `/api/v1/sync/exercise-days`.</li>
+            <li>Check that the participant was added to the intended competition.</li>
+            <li>Rotate and rescan the pairing token if a phone was paired with an old server URL.</li>
+          </ul>
+        </article>
+
+        <article class="panel">
+          <h2>Privacy</h2>
+          <p>
+            MinuteMetrics only needs Apple Health Exercise Minutes for competition tracking.
+            Data is stored on the Home Assistant instance configured by the user. Participant
+            sync tokens should be treated as private credentials.
+          </p>
+        </article>
+      </section>
+
+      <section class="panel public-section">
+        <h2>Contact</h2>
+        <p>
+          For app support, file an issue at
+          <a href="https://github.com/kmcrandom/minutemetrics-ha/issues">github.com/kmcrandom/minutemetrics-ha/issues</a>.
+          Include the add-on version, iOS app version, whether sync is local or remote, and any relevant
+          Home Assistant add-on logs.
+        </p>
+      </section>
+    </main>
+  </body>
+</html>
