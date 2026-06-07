@@ -514,6 +514,139 @@ dd {
   grid-template-columns: minmax(220px, 1fr) auto;
 }
 
+.admin-pages {
+  display: grid;
+  gap: 16px;
+}
+
+.admin-page-head {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 14px;
+  align-items: start;
+  margin-bottom: 16px;
+}
+
+.admin-page-head h2 {
+  font-size: 22px;
+}
+
+.admin-page-head p {
+  margin-top: 5px;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.responsive-table {
+  overflow-x: auto;
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.admin-table th,
+.admin-table td {
+  padding: 11px 10px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.admin-table th {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.admin-table tr:last-child td {
+  border-bottom: 0;
+}
+
+.admin-table .clickable-row {
+  cursor: pointer;
+}
+
+.admin-table .clickable-row:hover {
+  background: color-mix(in srgb, var(--panel-2) 60%, transparent);
+}
+
+.table-link {
+  color: var(--text);
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.table-link:hover {
+  text-decoration: underline;
+}
+
+.table-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.color-chip {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.color-chip .swatch {
+  height: 24px;
+}
+
+.competition-detail-form {
+  grid-template-columns: minmax(170px, 1.1fr) minmax(150px, 0.9fr) 150px 150px auto;
+}
+
+.participant-detail-form {
+  grid-template-columns: minmax(180px, 1fr) 88px minmax(180px, 1fr) minmax(210px, 1fr) auto;
+}
+
+.detail-actions {
+  margin-top: 14px;
+  justify-content: flex-start;
+}
+
+.row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.member-edit-table input[type="text"] {
+  width: min(240px, 100%);
+  min-height: 38px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0 10px;
+  background: var(--field);
+  color: var(--text);
+  font: inherit;
+}
+
+.member-edit-table input[type="color"] {
+  width: 58px;
+  min-height: 38px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 3px;
+  background: var(--field);
+}
+
+.member-edit-table input[type="checkbox"] {
+  width: 22px;
+  height: 22px;
+}
+
 .participant-create-form {
   grid-template-columns: minmax(180px, 1fr) 88px auto;
 }
@@ -1138,11 +1271,17 @@ dd {
 
   .token-form,
   .participant-create-form,
+  .participant-detail-form,
   .competition-create-form,
+  .competition-detail-form,
   .member-create-form,
   .admin-competition-form,
   .member-form,
   .admin-participant-form {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-page-head {
     grid-template-columns: 1fr;
   }
 

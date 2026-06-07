@@ -2,7 +2,7 @@
 
 ## Purpose
 
-The dashboard is the main shared view for the competition. It should work as a Home Assistant app dashboard and as a standalone browser page served by the app.
+The dashboard is the main shared view for exercise-minute competitions. It should work as a Home Assistant ingress dashboard and as a standalone browser page served by the app.
 
 ## Requirements
 
@@ -20,6 +20,10 @@ The dashboard is the main shared view for the competition. It should work as a H
 - Dashboard assets must use relative paths so the page works under Home Assistant ingress subpaths.
 - Configurable participant names and colors.
 - Optional Home Assistant user/person linkage display when configured.
+- Dashboard data must be private. Loading the shell without a valid dashboard data context must not reveal competition data.
+- Home Assistant ingress viewers receive full dashboard access after Home Assistant authentication.
+- Standalone full-dashboard access uses a configured dashboard token.
+- iOS or participant-scoped dashboard access uses the participant sync token and only lists competitions assigned to that participant.
 
 ## Visual Priorities
 
@@ -40,11 +44,11 @@ Lower section:
 
 - Daily winners heatmap with month labels.
 - Sync status.
-- Admin shortcut for configured users.
+- Private-data empty or authorization state when the viewer is not authorized.
 
 ## Projection Graph
 
-The projection graph is a combined SVG chart for the top two ranked participants.
+The projection graph is a combined SVG chart for all active participants in the selected competition.
 
 - Historical data is cumulative Exercise Minutes from competition start through local today.
 - Historical lines are thick, solid, stepped lines in each participant's color.
@@ -58,27 +62,40 @@ The projection graph is a combined SVG chart for the top two ranked participants
 
 ## Last 14 Days
 
-The Last 14 Days chart compares the top two ranked participants.
+The Last 14 Days chart compares all active participants in the selected competition.
 
 - Most recent day appears at the top.
-- Rank #1 extends left from the center axis.
-- Rank #2 extends right from the center axis.
+- Each participant receives a proportional horizontal bar for that day.
 - Inline minute labels are not shown inside the bars.
-- Hovering a bar row shows both participants' minutes for that date.
+- Hovering, tapping, or keyboard-focusing a bar row shows all participant minutes for that date.
 - A centered scale row shows approximate minutes.
 
-## Daily Winners
+## Daily Movers
 
-The Daily Winners heatmap shows all synced days up to the viewer's local today.
+The Daily Movers heatmap shows all synced days up to the viewer's local today.
 
-- Each day is colored by the participant with more Exercise Minutes that day.
+- Each day is colored by the participant with the most Exercise Minutes that day.
 - Ties use a neutral color.
 - Month labels group the visible days.
-- Hovering a cell shows the date, winner/tie, and both participants' minutes.
+- Hovering, tapping, or keyboard-focusing a cell shows the date, winner/tie, and all participant minutes.
+- Color intensity is capped around 60 minutes so one outlier day does not mute the rest of the calendar.
 
 ## Data Fields
 
-The dashboard consumes `GET /api/v1/competition`.
+The dashboard consumes:
+
+- `GET /api/v1/competitions`
+- `GET /api/v1/competition`
+- `GET /api/v1/competitions/{competition_id}/state`
+
+All dashboard data requests require one of:
+
+- Trusted Home Assistant ingress identity for all active competitions.
+- Admin bearer token for all active competitions.
+- Dashboard bearer token for all active competitions.
+- Participant sync bearer token for only that participant's active competition memberships.
+
+When the dashboard is opened outside Home Assistant, a token can be passed in the URL fragment, such as `#token=<token>`. The fragment keeps the token out of the HTTP request URL and allows the JavaScript client to send it as a bearer token.
 
 Expected derived values:
 
@@ -109,7 +126,8 @@ Expected derived values:
 7. Add projection graph.
 8. Add stale-sync and error states.
 9. Add responsive polish for Home Assistant iframe/webpage usage.
-10. Add Playwright visual smoke tests for desktop and mobile widths.
+10. Add private dashboard data access.
+11. Add Playwright visual smoke tests for desktop and mobile widths.
 
 ## Acceptance Criteria
 
@@ -120,3 +138,5 @@ Expected derived values:
 - Dashboard works whether participants are linked to Home Assistant users/persons or not.
 - Stale data is visible within the first viewport.
 - Dashboard can be embedded in Home Assistant.
+- Unauthenticated dashboard data requests return `401 Unauthorized`.
+- A participant sync token can only list and view competitions where that participant is an active member.

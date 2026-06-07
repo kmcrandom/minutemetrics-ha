@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import sqlite3
 from datetime import date
+from dataclasses import dataclass
 from io import BytesIO
 from collections.abc import Callable
 from pathlib import Path
@@ -38,6 +39,19 @@ from .schemas import (
     TokenRotatedResponse,
 )
 from .store import Store
+
+
+HOME_ASSISTANT_SUPERVISOR_INGRESS_HOST = "172.30.32.2"
+
+
+@dataclass(frozen=True)
+class DashboardAccess:
+    scope: str
+    participant_id: str | None = None
+
+    @property
+    def is_full(self) -> bool:
+        return self.scope == "full"
 
 
 def bearer_token(authorization: str | None) -> str | None:
@@ -80,6 +94,43 @@ def create_app(settings: Settings | None = None, conn: sqlite3.Connection | None
         if participant is None:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid participant token")
         return participant["id"]
+
+    def require_dashboard_access(
+        request: Request,
+        authorization: str | None = Header(default=None),
+    ) -> DashboardAccess:
+        token = bearer_token(authorization)
+        if token == settings.admin_token:
+            return DashboardAccess(scope="full")
+        if settings.dashboard_token is not None and token == settings.dashboard_token:
+            return DashboardAccess(scope="full")
+        if token is not None:
+            participant = store.get_participant_by_token(token)
+            if participant is not None:
+                return DashboardAccess(scope="participant", participant_id=participant["id"])
+        if _trusted_home_assistant_ingress(request):
+            return DashboardAccess(scope="full")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Dashboard data access required")
+
+    def visible_default_competition_id(access: DashboardAccess) -> str:
+        competitions = (
+            store.list_competitions(include_archived=False)
+            if access.is_full
+            else store.list_competitions_for_participant(access.participant_id or "")
+        )
+        if not competitions:
+            raise KeyError("competition")
+        default = next((competition for competition in competitions if competition["is_default"]), None)
+        return (default or competitions[0])["id"]
+
+    def require_visible_competition(access: DashboardAccess, competition_id: str) -> None:
+        if access.is_full:
+            row = store.get_competition_row(competition_id)
+            if row["status"] != "active":
+                raise KeyError(competition_id)
+            return
+        if not store.participant_can_access_competition(access.participant_id or "", competition_id):
+            raise KeyError(competition_id)
 
     @app.get("/health", response_model=HealthResponse)
     def health() -> dict:
@@ -268,30 +319,48 @@ def create_app(settings: Settings | None = None, conn: sqlite3.Connection | None
         return _not_found_guard(lambda: store.sync_profile(participant_id), participant_id)
 
     @app.get("/api/v1/competition", response_model=CompetitionState)
-    def competition_state(as_of_date: date | None = None) -> dict:
-        return _store_guard(lambda: store.competition_state(as_of_date=as_of_date.isoformat() if as_of_date else None))
-
-    @app.get("/api/v1/competitions", response_model=list[CompetitionResponse])
-    def public_list_competitions() -> list[dict]:
-        return store.list_competitions(include_archived=False)
-
-    @app.get("/api/v1/competitions/{competition_id}/state", response_model=CompetitionState)
-    def competition_state_by_id(competition_id: str, as_of_date: date | None = None) -> dict:
+    def competition_state(
+        as_of_date: date | None = None,
+        access: DashboardAccess = Depends(require_dashboard_access),
+    ) -> dict:
         return _store_guard(
             lambda: store.competition_state(
-                competition_id=competition_id,
+                competition_id=visible_default_competition_id(access),
                 as_of_date=as_of_date.isoformat() if as_of_date else None,
-            ),
+            )
+        )
+
+    @app.get("/api/v1/competitions", response_model=list[CompetitionResponse])
+    def dashboard_list_competitions(access: DashboardAccess = Depends(require_dashboard_access)) -> list[dict]:
+        if access.is_full:
+            return store.list_competitions(include_archived=False)
+        return store.list_competitions_for_participant(access.participant_id or "")
+
+    @app.get("/api/v1/competitions/{competition_id}/state", response_model=CompetitionState)
+    def competition_state_by_id(
+        competition_id: str,
+        as_of_date: date | None = None,
+        access: DashboardAccess = Depends(require_dashboard_access),
+    ) -> dict:
+        return _store_guard(
+            lambda: (
+                require_visible_competition(access, competition_id),
+                store.competition_state(
+                    competition_id=competition_id,
+                    as_of_date=as_of_date.isoformat() if as_of_date else None,
+                ),
+            )[1],
             competition_id,
         )
 
     @app.get("/api/v1/competitions/by-slug/{slug}/state", response_model=CompetitionState)
-    def competition_state_by_slug(slug: str, as_of_date: date | None = None) -> dict:
+    def competition_state_by_slug(
+        slug: str,
+        as_of_date: date | None = None,
+        access: DashboardAccess = Depends(require_dashboard_access),
+    ) -> dict:
         return _store_guard(
-            lambda: store.competition_state(
-                competition_id=store.get_competition_row_by_slug(slug)["id"],
-                as_of_date=as_of_date.isoformat() if as_of_date else None,
-            ),
+            lambda: _competition_state_for_slug(store, access, require_visible_competition, slug, as_of_date),
             slug,
         )
 
@@ -318,6 +387,29 @@ def _store_guard(callback: Callable[[], dict], resource_id: str | None = None) -
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from None
     except sqlite3.IntegrityError:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Resource conflict") from None
+
+
+def _competition_state_for_slug(
+    store: Store,
+    access: DashboardAccess,
+    require_visible_competition: Callable[[DashboardAccess, str], None],
+    slug: str,
+    as_of_date: date | None = None,
+) -> dict:
+    competition_id = store.get_competition_row_by_slug(slug)["id"]
+    require_visible_competition(access, competition_id)
+    return store.competition_state(
+        competition_id=competition_id,
+        as_of_date=as_of_date.isoformat() if as_of_date else None,
+    )
+
+
+def _trusted_home_assistant_ingress(request: Request) -> bool:
+    client_host = request.client.host if request.client else ""
+    return (
+        client_host == HOME_ASSISTANT_SUPERVISOR_INGRESS_HOST
+        and bool(request.headers.get("x-remote-user-id"))
+    )
 
 
 def versioned_html(path: Path) -> HTMLResponse:

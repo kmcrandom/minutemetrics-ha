@@ -11,6 +11,7 @@ from typing import Any
 class Settings:
     db_path: str
     admin_token: str
+    dashboard_token: str | None = None
     server_url: str | None = None
 
 
@@ -29,6 +30,7 @@ def load_settings() -> Settings:
             "MINUTEMETRICS_ADMIN_TOKEN",
             auth.get("admin_token") or "change-me-before-use",
         ),
+        dashboard_token=_optional_string(os.environ.get("MINUTEMETRICS_DASHBOARD_TOKEN", auth.get("dashboard_token"))),
         server_url=_optional_string(os.environ.get("MINUTEMETRICS_SERVER_URL", network.get("server_url"))),
     )
 

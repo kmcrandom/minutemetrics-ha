@@ -20,6 +20,28 @@ The sync token is sufficient for participant sync. The server resolves the parti
 
 Administrator endpoints use a separate admin token configured for the Home Assistant app or local backend.
 
+Dashboard data endpoints are private. A request without a valid token or trusted Home Assistant ingress identity must receive `401 Unauthorized` and must not return competition data.
+
+Dashboard data supports three read contexts:
+
+- Full dashboard access: admin token, dashboard token, or trusted Home Assistant ingress request.
+- Participant dashboard access: participant sync token.
+- No access: missing, unknown, or inactive token.
+
+Full dashboard access can list and read all active competitions. Participant dashboard access can list and read only active competitions where that participant has an active membership. Participant dashboard access still returns the full standings for competitions the participant belongs to, but it must not reveal unrelated competitions.
+
+The dashboard token is configured separately from the admin token:
+
+```yaml
+auth:
+  admin_token: "replace-with-a-long-random-token"
+  dashboard_token: "replace-with-a-long-random-dashboard-token"
+```
+
+The dashboard token must not authorize admin endpoints.
+
+Trusted Home Assistant ingress requests may receive full dashboard access when Home Assistant has already authenticated the viewer. The app must only trust ingress identity headers from the Supervisor ingress source, not from arbitrary public reverse-proxy traffic.
+
 ## Pairing
 
 Participant setup QR codes encode:
@@ -126,6 +148,8 @@ Behavior:
 
 `GET /api/v1/competition`
 
+Requires dashboard data access.
+
 Returns:
 
 - Competition metadata.
@@ -135,6 +159,24 @@ Returns:
 - Margin.
 - Sync status.
 - Projection fields.
+
+`GET /api/v1/competitions`
+
+Requires dashboard data access.
+
+Returns active competition summaries visible to the caller.
+
+`GET /api/v1/competitions/{competition_id}/state`
+
+Requires dashboard data access.
+
+Returns competition state if the caller can access that competition.
+
+`GET /api/v1/competitions/by-slug/{slug}/state`
+
+Requires dashboard data access.
+
+Returns competition state if the caller can access that competition.
 
 ### Admin Participants
 
