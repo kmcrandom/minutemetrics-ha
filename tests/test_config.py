@@ -11,7 +11,7 @@ def test_load_settings_from_home_assistant_options(tmp_path, monkeypatch) -> Non
     options_path.write_text(
         json.dumps(
             {
-                "auth": {"admin_token": "ha-admin-token"},
+                "auth": {"admin_token": "ha-admin-token", "dashboard_token": "ha-dashboard-token"},
                 "database": {"path": str(db_path)},
                 "network": {"server_url": "https://minutemetrics.example.test"},
             }
@@ -21,12 +21,14 @@ def test_load_settings_from_home_assistant_options(tmp_path, monkeypatch) -> Non
 
     monkeypatch.setenv("MINUTEMETRICS_OPTIONS_PATH", str(options_path))
     monkeypatch.delenv("MINUTEMETRICS_ADMIN_TOKEN", raising=False)
+    monkeypatch.delenv("MINUTEMETRICS_DASHBOARD_TOKEN", raising=False)
     monkeypatch.delenv("MINUTEMETRICS_DB_PATH", raising=False)
     monkeypatch.delenv("MINUTEMETRICS_SERVER_URL", raising=False)
 
     settings = load_settings()
 
     assert settings.admin_token == "ha-admin-token"
+    assert settings.dashboard_token == "ha-dashboard-token"
     assert settings.db_path == str(db_path)
     assert settings.server_url == "https://minutemetrics.example.test"
 
@@ -36,7 +38,7 @@ def test_environment_overrides_home_assistant_options(tmp_path, monkeypatch) -> 
     options_path.write_text(
         json.dumps(
             {
-                "auth": {"admin_token": "ha-admin-token"},
+                "auth": {"admin_token": "ha-admin-token", "dashboard_token": "ha-dashboard-token"},
                 "database": {"path": str(tmp_path / "options.sqlite")},
             }
         ),
@@ -45,11 +47,13 @@ def test_environment_overrides_home_assistant_options(tmp_path, monkeypatch) -> 
 
     monkeypatch.setenv("MINUTEMETRICS_OPTIONS_PATH", str(options_path))
     monkeypatch.setenv("MINUTEMETRICS_ADMIN_TOKEN", "env-admin-token")
+    monkeypatch.setenv("MINUTEMETRICS_DASHBOARD_TOKEN", "env-dashboard-token")
     monkeypatch.setenv("MINUTEMETRICS_DB_PATH", str(tmp_path / "env.sqlite"))
     monkeypatch.setenv("MINUTEMETRICS_SERVER_URL", "https://env.example.test")
 
     settings = load_settings()
 
     assert settings.admin_token == "env-admin-token"
+    assert settings.dashboard_token == "env-dashboard-token"
     assert settings.db_path == str(tmp_path / "env.sqlite")
     assert settings.server_url == "https://env.example.test"

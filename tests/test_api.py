@@ -12,15 +12,16 @@ from minutemetrics.db import connect
 
 
 ADMIN_TOKEN = "test-admin-token"
+DASHBOARD_TOKEN = "test-dashboard-token"
 
 
-def client(create_default_competition: bool = True) -> TestClient:
+def client(create_default_competition: bool = True, dashboard_auth: bool = True) -> TestClient:
     conn = connect(":memory:")
     app = create_app(
-        Settings(db_path=":memory:", admin_token=ADMIN_TOKEN),
+        Settings(db_path=":memory:", admin_token=ADMIN_TOKEN, dashboard_token=DASHBOARD_TOKEN),
         conn=conn,
     )
-    api = TestClient(app)
+    api = TestClient(app, headers=dashboard_headers() if dashboard_auth else None)
     if create_default_competition:
         create_competition(
             api,
@@ -34,6 +35,14 @@ def client(create_default_competition: bool = True) -> TestClient:
 
 def admin_headers() -> dict[str, str]:
     return {"Authorization": f"Bearer {ADMIN_TOKEN}"}
+
+
+def dashboard_headers() -> dict[str, str]:
+    return {"Authorization": f"Bearer {DASHBOARD_TOKEN}"}
+
+
+def participant_headers(participant: dict) -> dict[str, str]:
+    return {"Authorization": f"Bearer {participant['sync_token']}"}
 
 
 def create_participant(api: TestClient, display_name: str = "Participant") -> dict:
@@ -126,8 +135,8 @@ def test_fresh_install_starts_without_competitions() -> None:
 
 def test_existing_competition_survives_app_restart() -> None:
     conn = connect(":memory:")
-    app = create_app(Settings(db_path=":memory:", admin_token=ADMIN_TOKEN), conn=conn)
-    api = TestClient(app)
+    app = create_app(Settings(db_path=":memory:", admin_token=ADMIN_TOKEN, dashboard_token=DASHBOARD_TOKEN), conn=conn)
+    api = TestClient(app, headers=dashboard_headers())
     create_competition(
         api,
         name="Original Minutes",
@@ -136,8 +145,8 @@ def test_existing_competition_survives_app_restart() -> None:
         end_date="2026-12-31",
     )
 
-    restarted = create_app(Settings(db_path=":memory:", admin_token=ADMIN_TOKEN), conn=conn)
-    restarted_api = TestClient(restarted)
+    restarted = create_app(Settings(db_path=":memory:", admin_token=ADMIN_TOKEN, dashboard_token=DASHBOARD_TOKEN), conn=conn)
+    restarted_api = TestClient(restarted, headers=dashboard_headers())
     response = restarted_api.get("/api/v1/competition")
 
     assert response.status_code == 200
@@ -152,6 +161,7 @@ def test_app_config_exposes_pairing_server_url() -> None:
         Settings(
             db_path=":memory:",
             admin_token=ADMIN_TOKEN,
+            dashboard_token=DASHBOARD_TOKEN,
             server_url="https://minutemetrics.example.test",
         ),
         conn=conn,
@@ -213,6 +223,80 @@ def test_admin_token_required() -> None:
     api = client()
     response = api.get("/api/v1/admin/participants")
     assert response.status_code == 401
+
+
+def test_dashboard_data_requires_dashboard_access() -> None:
+    api = client(dashboard_auth=False)
+
+    competitions = api.get("/api/v1/competitions")
+    state = api.get("/api/v1/competition")
+
+    assert competitions.status_code == 401
+    assert state.status_code == 401
+
+
+def test_dashboard_token_and_admin_token_can_read_all_active_competitions() -> None:
+    api = client()
+    monthly = create_competition(api)
+
+    dashboard_response = api.get("/api/v1/competitions", headers=dashboard_headers())
+    admin_response = api.get(f"/api/v1/competitions/{monthly['id']}/state", headers=admin_headers())
+
+    assert dashboard_response.status_code == 200
+    assert {item["slug"] for item in dashboard_response.json()} == {"test-minutes", "february-minutes"}
+    assert admin_response.status_code == 200
+    assert admin_response.json()["competition"]["id"] == monthly["id"]
+
+
+def test_participant_token_only_reads_assigned_competitions() -> None:
+    api = client()
+    participant = create_participant(api, "Scoped Runner")
+    monthly = create_competition(api)
+    other = create_competition(
+        api,
+        name="Other Minutes",
+        slug="other-minutes",
+        start_date="2026-03-01",
+        end_date="2026-03-31",
+    )
+    membership = api.post(
+        f"/api/v1/admin/competitions/{monthly['id']}/participants",
+        headers=admin_headers(),
+        json={"participant_id": participant["id"]},
+    )
+    assert membership.status_code == 201
+
+    scoped = participant_headers(participant)
+    competitions = api.get("/api/v1/competitions", headers=scoped)
+    default_state = api.get("/api/v1/competition?as_of_date=2026-01-02", headers=scoped)
+    monthly_state = api.get(f"/api/v1/competitions/{monthly['id']}/state?as_of_date=2026-02-02", headers=scoped)
+    other_state = api.get(f"/api/v1/competitions/{other['id']}/state?as_of_date=2026-03-02", headers=scoped)
+
+    assert competitions.status_code == 200
+    assert {item["slug"] for item in competitions.json()} == {"test-minutes", "february-minutes"}
+    assert default_state.status_code == 200
+    assert default_state.json()["competition"]["slug"] == "test-minutes"
+    assert monthly_state.status_code == 200
+    assert monthly_state.json()["competition"]["slug"] == "february-minutes"
+    assert other_state.status_code == 404
+
+
+def test_home_assistant_ingress_identity_can_read_dashboard_data() -> None:
+    conn = connect(":memory:")
+    app = create_app(
+        Settings(db_path=":memory:", admin_token=ADMIN_TOKEN, dashboard_token=DASHBOARD_TOKEN),
+        conn=conn,
+    )
+    api = TestClient(app)
+    create_competition(api)
+
+    spoofed = api.get("/api/v1/competitions", headers={"X-Remote-User-Id": "ha-user"})
+    assert spoofed.status_code == 401
+
+    ingress_api = TestClient(app, client=("172.30.32.2", 50000))
+    trusted = ingress_api.get("/api/v1/competitions", headers={"X-Remote-User-Id": "ha-user"})
+    assert trusted.status_code == 200
+    assert {item["slug"] for item in trusted.json()} == {"february-minutes"}
 
 
 def test_create_participant_with_optional_home_assistant_links() -> None:
@@ -382,10 +466,10 @@ def test_sync_requires_participant_token_and_upserts_days() -> None:
 def test_competition_state_filters_totals_to_competition_date_range() -> None:
     conn = connect(":memory:")
     app = create_app(
-        Settings(db_path=":memory:", admin_token=ADMIN_TOKEN),
+        Settings(db_path=":memory:", admin_token=ADMIN_TOKEN, dashboard_token=DASHBOARD_TOKEN),
         conn=conn,
     )
-    api = TestClient(app)
+    api = TestClient(app, headers=dashboard_headers())
     create_competition(api)
     participant = create_participant(api)
 

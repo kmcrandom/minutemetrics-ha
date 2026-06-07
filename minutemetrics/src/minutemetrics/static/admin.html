@@ -16,7 +16,7 @@
         <a class="secondary-button" href="dashboard">Dashboard</a>
       </section>
 
-      <section class="panel admin-gate">
+      <section class="panel admin-gate" id="adminGate">
         <div class="panel-head">
           <h2>Access</h2>
         </div>
@@ -27,156 +27,17 @@
           </label>
           <button class="primary-button" type="submit">Unlock</button>
         </form>
-        <p class="admin-status" id="adminStatus"></p>
       </section>
 
       <section class="admin-workspace" id="adminWorkspace" hidden>
-        <section class="panel">
-          <div class="panel-head">
-            <h2>Competitions</h2>
-          </div>
-          <form class="admin-form competition-create-form" id="competitionForm">
-            <label>
-              <span>Name</span>
-              <input id="competitionName" name="competitionName" type="text" autocomplete="off" required>
-            </label>
-            <label>
-              <span>Slug</span>
-              <input id="competitionSlug" name="competitionSlug" type="text" autocomplete="off" placeholder="monthly-minutes">
-            </label>
-            <label>
-              <span>Start date</span>
-              <input id="competitionStartDate" name="competitionStartDate" type="date" required placeholder="YYYY-MM-DD">
-            </label>
-            <label>
-              <span>End date</span>
-              <input id="competitionEndDate" name="competitionEndDate" type="date" required placeholder="YYYY-MM-DD">
-            </label>
-            <button class="primary-button" type="submit">Create</button>
-          </form>
-          <div class="competition-list" id="competitions"></div>
-        </section>
-
-        <section class="panel" id="membershipPanel" hidden>
-          <div class="panel-head">
-            <h2 id="membershipTitle">Participants</h2>
-          </div>
-          <form class="admin-form member-create-form" id="memberForm">
-            <label>
-              <span>Existing participant</span>
-              <select id="existingParticipant" name="existingParticipant">
-                <option value="">Create new participant</option>
-              </select>
-            </label>
-            <label>
-              <span>Name</span>
-              <input id="memberName" name="memberName" type="text" autocomplete="off">
-            </label>
-            <label>
-              <span>Color</span>
-              <input id="memberColor" name="memberColor" type="color" value="#0f766e" aria-label="Participant color">
-            </label>
-            <fieldset class="color-presets" id="memberColorPresets">
-              <legend>Default colors</legend>
-            </fieldset>
-            <button class="primary-button" type="submit">Add</button>
-          </form>
-          <div class="admin-list" id="competitionMembers"></div>
-        </section>
-
-        <section class="panel">
-          <div class="panel-head">
-            <h2>All Participants</h2>
-            <button class="secondary-button" id="refreshAdmin" type="button">Refresh</button>
-          </div>
-          <div class="admin-list" id="adminParticipants"></div>
-        </section>
-
-        <section class="panel danger-panel">
-          <div class="panel-head">
-            <h2>Data</h2>
-          </div>
+        <p class="admin-status" id="adminStatus"></p>
+        <div id="adminView"></div>
+        <section class="panel admin-footer">
+          <button class="secondary-button" id="clearAdminToken" type="button">Clear Admin Token</button>
           <button class="danger-button" id="clearData" type="button">Clear Sync Data</button>
         </section>
       </section>
     </main>
-
-    <template id="competitionTemplate">
-      <article class="admin-competition">
-        <form class="admin-competition-form">
-          <label>
-            <span>Name</span>
-            <input class="admin-competition-name" type="text" autocomplete="off" required>
-          </label>
-          <label>
-            <span>Slug</span>
-            <input class="admin-competition-slug" type="text" autocomplete="off" required>
-          </label>
-          <label>
-            <span>Start date</span>
-            <input class="admin-competition-start" type="date" required placeholder="YYYY-MM-DD">
-          </label>
-          <label>
-            <span>End date</span>
-            <input class="admin-competition-end" type="date" required placeholder="YYYY-MM-DD">
-          </label>
-          <div class="admin-actions">
-            <button class="secondary-button select-competition" type="button">Manage</button>
-            <button class="secondary-button default-competition" type="button">Default</button>
-            <button class="secondary-button save-competition" type="submit">Save</button>
-            <button class="danger-button archive-competition" type="button">Archive</button>
-          </div>
-        </form>
-        <p class="sync competition-meta"></p>
-      </article>
-    </template>
-
-    <template id="adminParticipantTemplate">
-      <article class="admin-participant">
-        <form class="admin-participant-form">
-          <span class="swatch"></span>
-          <label>
-            <span>Name</span>
-            <input class="admin-participant-name" type="text" autocomplete="off" required>
-          </label>
-          <label>
-            <span>Color</span>
-            <input class="admin-participant-color" type="color" aria-label="Participant color">
-          </label>
-          <div class="admin-actions">
-            <button class="secondary-button save-participant" type="submit">Save</button>
-            <button class="secondary-button pair-participant" type="button">Pair</button>
-            <button class="danger-button delete-participant" type="button">Delete</button>
-          </div>
-        </form>
-        <p class="sync"></p>
-      </article>
-    </template>
-
-    <template id="memberTemplate">
-      <article class="admin-participant">
-        <form class="member-form">
-          <span class="swatch"></span>
-          <label>
-            <span>Participant name</span>
-            <input class="member-name" type="text" autocomplete="off">
-          </label>
-          <label>
-            <span>Participant color</span>
-            <input class="member-color" type="color" aria-label="Participant color">
-          </label>
-          <label class="toggle-label">
-            <span>Active</span>
-            <input class="member-active" type="checkbox">
-          </label>
-          <div class="admin-actions">
-            <button class="secondary-button save-member" type="submit">Save</button>
-            <button class="danger-button remove-member" type="button">Remove</button>
-          </div>
-        </form>
-        <p class="sync"></p>
-      </article>
-    </template>
 
     <dialog class="pairing-dialog" id="pairingDialog">
       <div class="pairing-head">

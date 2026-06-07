@@ -8,6 +8,7 @@ MinuteMetrics receives Apple Health Exercise Minutes from paired iOS devices, st
 - Persistent SQLite storage under `/data`.
 - Home Assistant ingress dashboard.
 - Multiple admin-managed competitions with independent date ranges.
+- Private dashboard data with Home Assistant ingress, dashboard-token, and participant-token access modes.
 - Optional Home Assistant user or `person` entity links for participants.
 - Admin dashboard and API for competition management, participant management, token rotation, and sensor payloads.
 
@@ -20,8 +21,9 @@ Published installs use the pre-built GHCR image declared in `config.yaml`:
 3. Install MinuteMetrics.
 4. Open the Configuration tab.
 5. Change `auth.admin_token` from `change-me-before-use` to a long private value.
-6. Start the app.
-7. Open the Admin page and create your first competition.
+6. Optionally set `auth.dashboard_token` to a long private value for standalone read-only dashboard access outside Home Assistant.
+7. Start the app.
+8. Open the Admin page and create your first competition.
 
 The SQLite database is stored at `/data/minutemetrics.sqlite` by default and persists across app restarts and upgrades.
 
@@ -32,6 +34,7 @@ Example app options:
 ```yaml
 auth:
   admin_token: "replace-with-a-long-random-token"
+  dashboard_token: "replace-with-a-long-random-dashboard-token"
 database:
   path: "/data/minutemetrics.sqlite"
 dashboard:
@@ -45,6 +48,8 @@ network:
 
 `network.server_url` is embedded in iOS pairing QR codes. Use a URL the iPhone can reach from the networks where sync should work.
 
+`auth.dashboard_token` is optional for Home Assistant ingress use. When set, it grants read-only access to all active dashboard data and does not grant admin access. Participant sync tokens can also read dashboard data, but only for competitions assigned to that participant.
+
 ## Local Development
 
 Run locally from the repository root:
@@ -52,7 +57,7 @@ Run locally from the repository root:
 ```bash
 python3 -m venv .venv
 .venv/bin/python -m pip install -e '.[test]'
-MINUTEMETRICS_ADMIN_TOKEN=replace-with-local-admin-token .venv/bin/python -m minutemetrics
+MINUTEMETRICS_ADMIN_TOKEN=replace-with-local-admin-token MINUTEMETRICS_DASHBOARD_TOKEN=replace-with-local-dashboard-token .venv/bin/python -m minutemetrics
 ```
 
 The API will listen on `http://0.0.0.0:8080` by default.
@@ -82,6 +87,8 @@ The dashboard is available at:
 http://HOME_ASSISTANT_IP:8080/
 ```
 
+Outside Home Assistant ingress, the dashboard shell can load without credentials but dashboard data is private. Use a configured dashboard token for full read-only standalone access, such as `/dashboard#token=<dashboard-token>`, or a participant sync token for participant-scoped access.
+
 ## HTTPS Sync
 
 For remote iPhone sync, use an HTTPS reverse proxy in front of the exposed MinuteMetrics app port:
@@ -101,5 +108,6 @@ MinuteMetrics participants are the stable identity for competition history. A pa
 ## Security
 
 - Change the default admin token before using the app on a network.
+- Use a private dashboard token if exposing standalone full-dashboard access outside Home Assistant.
 - Treat participant sync tokens as private credentials.
 - Do not publish live Home Assistant options files or SQLite databases.

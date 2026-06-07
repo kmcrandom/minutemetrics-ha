@@ -2,7 +2,7 @@
 
 ## Status
 
-Draft.
+Implemented in stages for the Home Assistant app. This spec remains the source record for the multi-competition design and has been amended for private dashboard data access.
 
 ## Summary
 
@@ -35,7 +35,6 @@ The iOS pairing model is also single-token oriented in the UI. A person with one
 - Do not require Home Assistant user accounts for competition membership.
 - Do not require participants to re-pair for the default competition during migration.
 - Do not build a native Home Assistant custom integration in this change.
-- Do not add viewer authentication in this change.
 - Do not add recurring competition templates in the first implementation.
 
 ## Current Behavior
@@ -50,7 +49,8 @@ The iOS pairing model is also single-token oriented in the UI. A person with one
 - Current aggregate totals are not fully constrained by the competition date range; `total_for_participant` and `daily_series` use all submitted exercise days.
 - Participant cards render all participants.
 - Leader and margin work across all ranked participants.
-- Projection chart, Last 14 Days, and Daily Winners use `data.participants.slice(0, 2)`.
+- Projection chart, Last 14 Days, and Daily Movers now support all active competition participants.
+- Dashboard data endpoints are no longer public.
 
 ## Design Decisions
 
@@ -61,7 +61,9 @@ The iOS pairing model is also single-token oriented in the UI. A person with one
 - Participant sync tokens remain participant-level credentials.
 - One token can sync one participant's data for every competition that participant has joined.
 - Existing `/api/v1/competition` remains a default-competition compatibility endpoint.
-- Dashboard aggregate endpoints are public, as they are today. Admin mutation endpoints remain token-protected.
+- Dashboard aggregate endpoints are private. Admin mutation endpoints remain admin-token-protected.
+- Full dashboard access uses the admin token, dashboard token, or trusted Home Assistant ingress identity.
+- Participant dashboard access uses the participant sync token and is scoped to active competition memberships.
 - Competition state endpoints accept an optional `as_of_date` so dashboard "today" and projection calculations can be based on the viewer's local date.
 
 ## Proposed Concepts
@@ -307,7 +309,7 @@ DELETE /api/v1/admin/competitions/{competition_id}/participants/{participant_id}
 - Does not delete the participant.
 - Does not delete `exercise_days`.
 
-### Public Competition State
+### Private Dashboard Competition State
 
 Keep backwards compatibility:
 
@@ -317,6 +319,7 @@ GET /api/v1/competition
 
 Behavior:
 
+- Requires dashboard data access.
 - Returns the default active competition.
 - If `settings.default_competition_id` is missing or invalid, returns the first active competition by creation date.
 
@@ -337,6 +340,13 @@ GET /api/v1/competitions/by-slug/{slug}/state?as_of_date=YYYY-MM-DD
 - `end_date`
 - `status`
 - participant count
+
+Visibility:
+
+- Full dashboard access returns all active competitions.
+- Participant dashboard access returns only active competitions where the authenticated participant has an active membership.
+- Requests without valid dashboard data access return `401 Unauthorized`.
+- Requests for inaccessible competitions return `404 Not Found` to avoid revealing unrelated competition IDs.
 
 Competition state response changes:
 
@@ -620,7 +630,7 @@ Rules:
 - Participant colors identify bars, but tooltips and accessible labels include names.
 - For more than six participants, show top six by rank by default and expose participant visibility toggles.
 
-### Daily Winners Heatmap
+### Daily Movers Heatmap
 
 Update winner calculations to consider all active competition participants by default.
 
@@ -628,8 +638,9 @@ Rules:
 
 - Winner is the participant with the highest minutes for that date.
 - Ties use neutral color.
-- Tooltip lists winner/tie and top participant values.
+- Tooltip lists winner/tie and participant values.
 - If more than one participant ties for first, tooltip lists tied names.
+- Heatmap color intensity is capped around 60 minutes so outliers do not mute ordinary days.
 - If the dashboard adds a visibility filter that changes winner calculations, the UI must clearly label the heatmap as filtered.
 
 ### Margin
@@ -692,8 +703,11 @@ Compatibility:
 ## Security And Privacy
 
 - Admin endpoints remain protected by the admin token.
+- Dashboard data endpoints require a valid dashboard data context.
+- The dashboard token grants read-only access to all active competition dashboard data and must not authorize admin endpoints.
+- Home Assistant ingress identity is trusted only from the Supervisor ingress source.
 - Participant sync tokens remain secrets.
-- A participant token exposes that participant's profile and memberships.
+- A participant token exposes that participant's profile, memberships, and dashboard data for competitions where that participant is an active member.
 - A participant token allows syncing that participant's data across that participant's memberships.
 - A participant token must not allow reading other participants' raw day history outside aggregate competition state.
 - Pairing QR codes should be treated as secret until scanned.
@@ -732,7 +746,8 @@ Dashboard tests:
 - Competition selector URL state.
 - Projection chart with participant visibility toggles.
 - Last 14 Days grouped chart.
-- Daily Winners across all participants.
+- Daily Movers across all participants.
+- Dashboard data auth: dashboard token, admin token, trusted ingress, participant token scope, and missing-token rejection.
 - Mobile and desktop viewport checks.
 
 iOS tests:
@@ -769,7 +784,7 @@ iOS tests:
 3. Keep participant cards all-member.
 4. Replace projection chart with multi-participant projection mode selector.
 5. Replace Last 14 Days diverging chart with grouped multi-participant chart.
-6. Update Daily Winners heatmap to all participants.
+6. Update Daily Movers heatmap to all participants.
 7. Add visibility toggles for larger competitions.
 8. Add desktop and mobile visual verification for 0, 1, 2, 4, and 8 participants.
 
@@ -811,7 +826,9 @@ iOS tests:
 - Dashboard renders correctly with 0, 1, 2, 4, and 8 participants.
 - Projection chart remains readable with 8 participants by using visibility controls.
 - Last 14 Days chart compares more than two participants.
-- Daily Winners considers all active competition participants by default.
+- Daily Movers considers all active competition participants by default.
+- Unauthenticated dashboard data requests return `401 Unauthorized`.
+- Participant-token dashboard access cannot list or read competitions outside the participant's active memberships.
 - Competition totals are constrained to competition date ranges.
 - iOS can pair one phone once and discover multiple joined competitions on that server.
 - iOS can sync HealthKit data once for overlapping ranges and update multiple competition totals.
@@ -822,5 +839,5 @@ iOS tests:
 - Should competitions support recurrence templates, such as "every month", or should monthly competitions be explicit records?
 - Should new competitions default to no members, all active participants, or a selected subset?
 - Should a participant be able to pause syncing to one competition while continuing another?
-- Should archived competitions remain visible to ordinary dashboard viewers through direct URLs?
-- Should admins be able to hide specific active competitions from the public switcher?
+- Should archived competitions have an explicit admin-only dashboard preview?
+- Should admins be able to hide specific active competitions from the dashboard switcher?

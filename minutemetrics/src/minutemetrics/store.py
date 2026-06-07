@@ -204,6 +204,46 @@ class Store:
         default_competition_id = self.default_competition_id_or_none() or ""
         return [row_to_competition(row, default_competition_id, int(row["participant_count"])) for row in rows]
 
+    def list_competitions_for_participant(self, participant_id: str) -> list[dict]:
+        self.get_participant(participant_id)
+        rows = self.conn.execute(
+            """
+            SELECT
+              c.*,
+              (
+                SELECT COUNT(*)
+                FROM competition_memberships cm
+                WHERE cm.competition_id = c.id AND cm.active = 1
+              ) AS participant_count
+            FROM competitions c
+            JOIN competition_memberships m ON m.competition_id = c.id
+            WHERE m.participant_id = ?
+              AND m.active = 1
+              AND c.status = 'active'
+            ORDER BY c.start_date DESC, c.created_at DESC, c.name
+            """,
+            (participant_id,),
+        ).fetchall()
+        default_competition_id = self.default_competition_id_or_none() or ""
+        return [row_to_competition(row, default_competition_id, int(row["participant_count"])) for row in rows]
+
+    def participant_can_access_competition(self, participant_id: str, competition_id: str) -> bool:
+        row = self.conn.execute(
+            """
+            SELECT 1
+            FROM competition_memberships m
+            JOIN competitions c ON c.id = m.competition_id
+            JOIN participants p ON p.id = m.participant_id
+            WHERE m.participant_id = ?
+              AND m.competition_id = ?
+              AND m.active = 1
+              AND c.status = 'active'
+              AND p.active = 1
+            """,
+            (participant_id, competition_id),
+        ).fetchone()
+        return row is not None
+
     def create_competition(self, payload: CompetitionCreate) -> dict:
         competition_id = str(uuid.uuid4())
         slug = payload.slug or self._unique_competition_slug(self._slugify(payload.name))

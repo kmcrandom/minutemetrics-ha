@@ -11,6 +11,7 @@ This plan implements [SDD Change Spec: Multi-Participant Dashboards and Multiple
 - Keep each phase vertically testable.
 - Avoid requiring iOS changes before the Home Assistant app can migrate safely.
 - Keep `/api/v1/competition` and existing participant sync behavior working throughout the transition.
+- Keep dashboard data private while still allowing Home Assistant ingress users to view the full dashboard.
 - Do not publish a release until migrations have been tested against the current `0.1.1` schema.
 
 ## Release Strategy
@@ -73,14 +74,35 @@ Contents:
 - Multi-participant projection chart.
 - Projection mode segmented control.
 - Multi-participant Last 14 Days grouped chart.
-- Daily Winners across all active participants.
+- Daily Movers across all active participants.
 - Participant visibility toggles for larger competitions.
 
 Exit gate:
 
 - Dashboard is visually verified at desktop and mobile widths with 0, 1, 2, 4, and 8 participants.
 - Charts remain readable with eight participants.
-- Daily Winners considers every active competition member by default.
+- Daily Movers considers every active competition member by default.
+
+### Release C2: Private Dashboard Data
+
+Purpose:
+
+- Prevent unauthenticated dashboard data reads while keeping Home Assistant ingress and participant-scoped iOS dashboard views practical.
+
+Contents:
+
+- Optional `auth.dashboard_token`.
+- Dashboard data dependency for full and participant-scoped reads.
+- Trusted Home Assistant ingress identity support from the Supervisor ingress source.
+- Dashboard JavaScript bearer-token support from URL fragments.
+- Unauthorized dashboard empty state.
+
+Exit gate:
+
+- Missing token returns `401 Unauthorized` for dashboard data endpoints.
+- Dashboard token and admin token can read all active competitions.
+- Participant sync token can read only competitions assigned to that participant.
+- Home Assistant ingress identity can read all active competitions, but spoofed ingress headers from ordinary clients are rejected.
 
 ### Release D: iOS Multi-Competition Sync
 
@@ -202,8 +224,8 @@ Tasks:
 
 1. Add admin competition list/create/detail/update endpoints.
 2. Add archive and restore endpoints.
-3. Add public competition summary list endpoint.
-4. Add public competition state endpoints by ID and slug.
+3. Add dashboard competition summary list endpoint.
+4. Add dashboard competition state endpoints by ID and slug.
 5. Validate slugs.
 6. Validate date ranges.
 7. Add default competition fallback behavior.
@@ -217,8 +239,8 @@ Tests:
 Definition of done:
 
 - Admin can create two active competitions with overlapping dates.
-- Public state can be fetched by ID and slug.
-- Archived competitions do not appear in public competition summaries.
+- Authorized dashboard state can be fetched by ID and slug.
+- Archived competitions do not appear in dashboard competition summaries.
 
 ### Phase 5: Membership API
 
@@ -296,7 +318,7 @@ Definition of done:
 
 Tasks:
 
-1. Fetch public competition summaries.
+1. Fetch authorized competition summaries.
 2. Add competition selector when more than one active competition exists.
 3. Store selected competition in URL query string.
 4. Fetch state with `as_of_date=<viewer-local-date>`.
@@ -311,8 +333,33 @@ Verification:
 
 Definition of done:
 
-- Dashboard can switch between competitions without admin token.
+- Dashboard can switch between competitions with Home Assistant ingress, dashboard token, or participant token access.
 - Selected competition survives page reload.
+
+### Phase 10: Private Dashboard Data
+
+Tasks:
+
+1. Add `auth.dashboard_token` to Home Assistant options and local settings.
+2. Add a dashboard data access dependency with full and participant scopes.
+3. Protect `/api/v1/competition`, `/api/v1/competitions`, and competition state endpoints.
+4. Scope participant-token competition lists and state reads to active memberships.
+5. Trust Home Assistant ingress identity only from the Supervisor ingress source.
+6. Send bearer tokens from dashboard URL fragments in the dashboard client.
+7. Render an authorization-required dashboard state when data access is denied.
+
+Verification:
+
+- API tests for no token, dashboard token, admin token, participant token, trusted ingress, and spoofed ingress.
+- Browser check for unauthorized dashboard state.
+- Browser check for dashboard-token dashboard loading.
+- Browser check for participant-token competition scoping.
+
+Definition of done:
+
+- No unauthenticated dashboard data endpoint returns competition data.
+- Home Assistant ingress dashboard still loads full data.
+- Participant dashboard access cannot reveal unrelated competitions.
 
 ### Phase 9: Multi-Participant Charts
 
@@ -322,7 +369,7 @@ Tasks:
 2. Add projection mode segmented control.
 3. Add participant visibility toggles when participant count exceeds six.
 4. Replace diverging Last 14 Days chart with grouped multi-participant bars.
-5. Update Daily Winners to consider all active competition members.
+5. Update Daily Movers to consider all active competition members.
 6. Keep all participant cards visible and ranked.
 7. Add empty states for zero and one participant.
 
@@ -476,4 +523,4 @@ Before tagging a release that includes any phase:
 - Should Release A and Release B be one release or two?
 - Should multi-competition backend ship before the iOS app supports `/sync/me`?
 - Should the admin UI support cloning an existing competition to make the next month easier?
-- Should public dashboard users be allowed to view archived competitions by direct URL?
+- Should archived competitions have an admin-only dashboard preview?

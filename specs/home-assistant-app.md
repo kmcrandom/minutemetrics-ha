@@ -11,11 +11,12 @@ The Home Assistant app stores participant Exercise Minutes, exposes an API for t
 - Persistent SQLite storage under `/data`.
 - Admin UI for competition and participant management, with API support for automation.
 - Token-based participant authentication.
-- Dashboard served from the app.
+- Private dashboard data served from the app.
 - Optional Home Assistant sensor publishing.
 - Public installs use a pre-built GHCR image rather than building on the Home Assistant device.
 - Competitions and participants can be created from the Home Assistant app UI without command-line access.
 - Participant creation shows a QR code containing the configured server URL and generated sync token.
+- Public App Store support and marketing pages are served by the app without exposing private competition data.
 
 ## App Configuration
 
@@ -24,6 +25,7 @@ Example:
 ```yaml
 auth:
   admin_token: "replace-with-a-long-random-token"
+  dashboard_token: "replace-with-a-long-random-dashboard-token"
 database:
   path: "/data/minutemetrics.sqlite"
 dashboard:
@@ -38,6 +40,8 @@ network:
 Competitions and participants should be created through the dashboard admin view or API, not hardcoded in YAML.
 
 The `network.server_url` option is the URL embedded in iOS setup QR codes. It should be the externally reachable MinuteMetrics API origin, such as a reverse-proxied HTTPS URL.
+
+The `auth.dashboard_token` option grants read-only access to all active dashboard data. It is separate from the admin token and must not authorize admin API endpoints. Home Assistant ingress viewers can also receive full dashboard access through trusted Home Assistant ingress identity, so the dashboard token is primarily for standalone read-only dashboard access outside Home Assistant.
 
 Participants can optionally be linked to Home Assistant users or `person` entities. The link is metadata only; the app must continue to work for participants with no Home Assistant account.
 
@@ -77,13 +81,26 @@ The app should implement the API in [API and Data Model Spec](api-data-model.md)
 
 Additional local endpoints:
 
-- `GET /` dashboard app.
+- `GET /` dashboard app, except on the public marketing host where it serves the marketing page.
+- `GET /dashboard` dashboard app.
+- `GET /admin` admin app.
+- `GET /support` public support page.
 - `GET /api/v1/app-config` non-secret UI configuration.
 - `POST /api/v1/admin/pairing-qr` pairing QR code generation for a newly created token.
+
+Dashboard data endpoints require dashboard data access:
+
+- Full access: admin token, dashboard token, or trusted Home Assistant ingress identity.
+- Participant access: participant sync token, scoped to active competitions where the participant is an active member.
+- No token or untrusted ingress headers: `401 Unauthorized`.
 
 ## Admin Features
 
 - Create, edit, archive, restore, and select competitions.
+- Show an overview page with a competitions table and an all-participants table.
+- Open a competition detail page by clicking a competition row.
+- Open a participant detail page by clicking a participant row.
+- Add a new competition on a dedicated page.
 - Create participant.
 - Show pairing QR code after participant creation.
 - Edit participant display name.
@@ -93,6 +110,8 @@ Additional local endpoints:
 - Deactivate participant.
 - Generate iOS setup link.
 - See last sync status.
+- Hide the access form after the admin token is accepted.
+- Clear the locally stored admin token from the admin UI.
 
 Pairing QR payload:
 
@@ -126,6 +145,8 @@ Pairing QR payload:
 - Admin receives a QR code that can configure the iOS app with server URL and sync token.
 - Admin can optionally link a participant to a Home Assistant user/person and later clear that link.
 - iOS app can sync with participant token.
-- Dashboard loads from Home Assistant.
+- Dashboard loads from Home Assistant with full data through trusted ingress identity.
+- Unauthenticated public dashboard data requests do not return competition data.
+- A participant sync token can load only that participant's assigned competitions.
 - HA sensors update after sync when publishing is enabled.
 - Home Assistant Yellow can install by pulling the pre-built image without compiling dependencies locally.

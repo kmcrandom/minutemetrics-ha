@@ -4,6 +4,7 @@ const state = {
   selectedCompetitionId: new URLSearchParams(window.location.search).get("competition")
     || localStorage.getItem("minutemetrics.selectedCompetitionId")
     || "",
+  authToken: dashboardAuthToken(),
 };
 
 const HEATMAP_INTENSITY_CAP_MINUTES = 60;
@@ -28,6 +29,10 @@ const dashboardTooltip = createDashboardTooltip();
 
 els.refresh.addEventListener("click", () => load());
 els.competitionSelect.addEventListener("change", () => selectCompetition(els.competitionSelect.value));
+window.addEventListener("hashchange", () => {
+  state.authToken = dashboardAuthToken();
+  load();
+});
 document.addEventListener("click", (event) => {
   if (
     event.target instanceof Element
@@ -53,14 +58,16 @@ async function load() {
       renderNoCompetitions();
       return;
     }
-    const response = await fetch(competitionStateUrl(), { cache: "no-store" });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    state.data = await response.json();
+    state.data = await fetchDashboardJson(competitionStateUrl());
     state.selectedCompetitionId = state.data.competition.id;
     localStorage.setItem("minutemetrics.selectedCompetitionId", state.selectedCompetitionId);
     renderCompetitionSelect();
     render(state.data);
   } catch (error) {
+    if (error.status === 401) {
+      renderUnauthorized();
+      return;
+    }
     els.leaderName.textContent = "Unable to load";
     els.margin.textContent = "0 min";
     renderCompetitionSelect();
@@ -69,15 +76,37 @@ async function load() {
 }
 
 async function loadCompetitions() {
-  const response = await fetch("api/v1/competitions", { cache: "no-store" });
-  if (!response.ok) throw new Error(`HTTP ${response.status}`);
-  state.competitions = await response.json();
+  state.competitions = await fetchDashboardJson("api/v1/competitions");
   const selectedExists = state.competitions.some((competition) => competition.id === state.selectedCompetitionId);
   if ((!state.selectedCompetitionId || !selectedExists) && state.competitions.length) {
     const fallback = state.competitions.find((competition) => competition.is_default) || state.competitions[0];
     state.selectedCompetitionId = fallback.id;
     localStorage.setItem("minutemetrics.selectedCompetitionId", state.selectedCompetitionId);
   }
+}
+
+async function fetchDashboardJson(url) {
+  const response = await fetch(url, {
+    cache: "no-store",
+    headers: dashboardAuthHeaders(),
+  });
+  if (response.status === 401) {
+    const error = new Error("Dashboard data access required");
+    error.status = 401;
+    throw error;
+  }
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  return response.json();
+}
+
+function dashboardAuthHeaders() {
+  return state.authToken ? { Authorization: `Bearer ${state.authToken}` } : {};
+}
+
+function dashboardAuthToken() {
+  const hash = window.location.hash.startsWith("#") ? window.location.hash.slice(1) : window.location.hash;
+  const params = new URLSearchParams(hash);
+  return params.get("token") || params.get("sync_token") || params.get("dashboard_token") || "";
 }
 
 function competitionStateUrl() {
@@ -115,6 +144,23 @@ function renderNoCompetitions() {
   els.projectionLegend.replaceChildren();
   els.bars.replaceChildren(emptyMessage("No competition selected."));
   els.heatmap.replaceChildren(emptyMessage("No competition selected."));
+}
+
+function renderUnauthorized() {
+  state.data = null;
+  state.competitions = [];
+  state.selectedCompetitionId = "";
+  renderCompetitionSelect();
+  els.title.textContent = "MinuteMetrics";
+  els.range.textContent = "Private dashboard";
+  els.leaderName.textContent = "Authorization required";
+  els.margin.textContent = "0 min";
+  els.emptyState.hidden = false;
+  els.participants.replaceChildren(emptyMessage("Open this dashboard through Home Assistant or provide a valid dashboard or participant token."));
+  els.projectionChart.replaceChildren(emptyMessage("Dashboard data is private."));
+  els.projectionLegend.replaceChildren();
+  els.bars.replaceChildren(emptyMessage("Dashboard data is private."));
+  els.heatmap.replaceChildren(emptyMessage("Dashboard data is private."));
 }
 
 function selectCompetition(competitionId) {
