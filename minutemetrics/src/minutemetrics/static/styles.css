@@ -59,6 +59,10 @@ body {
   margin-bottom: 18px;
 }
 
+.topline > div:first-child {
+  min-width: 0;
+}
+
 h1,
 h2,
 p {
@@ -93,6 +97,8 @@ h1 {
   gap: 10px;
   align-items: end;
   justify-content: flex-end;
+  min-width: 0;
+  flex-wrap: nowrap;
 }
 
 .competition-select-label {
@@ -1214,23 +1220,28 @@ dd {
 
   h1 {
     font-size: 28px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .leader-band {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
   }
 
   .topline {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
   }
 
   .dashboard-actions {
-    justify-content: stretch;
+    justify-content: flex-end;
   }
 
   .competition-select-label {
     min-width: 0;
-    flex: 1;
+    width: min(150px, 34vw);
   }
 
   .empty-state {
@@ -1242,11 +1253,15 @@ dd {
   }
 
   .leader-name {
-    font-size: 32px;
+    font-size: clamp(24px, 8vw, 32px);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .margin {
-    text-align: left;
+    text-align: right;
+    white-space: nowrap;
   }
 
   .total {

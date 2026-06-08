@@ -1,5 +1,10 @@
 # MinuteMetrics Changelog
 
+## 0.2.7
+
+- Kept the dashboard header actions inline with the competition title on narrow screens.
+- Kept the dashboard leader and margin summary on one line on narrow screens.
+
 ## 0.2.6
 
 - Added private dashboard data access for Home Assistant ingress, dashboard tokens, admin tokens, and participant-scoped sync tokens.
