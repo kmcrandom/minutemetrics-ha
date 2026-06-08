@@ -211,6 +211,13 @@ def create_app(settings: Settings | None = None, conn: sqlite3.Connection | None
     def admin_restore_competition(competition_id: str) -> dict:
         return _store_guard(lambda: store.restore_competition(competition_id), competition_id)
 
+    @app.delete(
+        "/api/v1/admin/competitions/{competition_id}",
+        dependencies=[Depends(require_admin)],
+    )
+    def admin_delete_competition(competition_id: str) -> dict:
+        return _store_guard(lambda: store.delete_competition(competition_id), competition_id)
+
     @app.post(
         "/api/v1/admin/competitions/{competition_id}/default",
         response_model=CompetitionResponse,

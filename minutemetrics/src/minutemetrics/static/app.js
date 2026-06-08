@@ -294,14 +294,21 @@ function renderProjectionChart(data) {
     svg.append(historyPath);
 
     series.projections.forEach((projection) => {
-      const tooltip = `${series.participant.display_name} projected by ${projection.label}: ${formatNumber(Math.round(projection.points[projection.points.length - 1].value))} min`;
+      const tooltip = `${series.participant.display_name} at ${projection.label}: ${formatNumber(projection.finalTotal)} min at the end of ${data.competition.name}`;
       const path = createSvg("path", {
         class: `projection-line projection-future ${projection.className}`,
         d: stepPath(projection.points, xForIndex, yForValue),
         stroke: series.participant.color,
+        "aria-hidden": "true",
       });
-      attachTooltip(path, tooltip);
-      svg.append(path);
+      const hitPath = createSvg("path", {
+        class: "projection-hitbox",
+        d: stepPath(projection.points, xForIndex, yForValue),
+        stroke: series.participant.color,
+        "data-projection-label": projection.label,
+      });
+      attachTooltip(hitPath, tooltip);
+      svg.append(path, hitPath);
     });
   });
 
@@ -325,13 +332,14 @@ function buildParticipantProjection(data, participant, start, today, end) {
     lastSevenDates.reduce((sum, date) => sum + minutesFor(data, participant.id, date), 0) / Math.max(1, lastSevenDates.length);
   const todayMinutes = minutesFor(data, participant.id, today);
   const rates = [
-    { label: "all-data average", className: "projection-total-average", value: totalAverage },
-    { label: "last 7 days", className: "projection-seven-average", value: lastSevenAverage },
-    { label: "today's minutes", className: "projection-today-rate", value: todayMinutes },
+    { label: "Average pace", className: "projection-total-average", value: totalAverage },
+    { label: "Weekly pace", className: "projection-seven-average", value: lastSevenAverage },
+    { label: "Today's pace", className: "projection-today-rate", value: todayMinutes },
   ];
 
   const projections = rates.map((rate) => ({
     ...rate,
+    finalTotal: Math.round(cumulative + rate.value * futureDates.length),
     points: [
       { index: futureStartIndex, date: today, value: cumulative },
       ...futureDates.map((date, futureIndex) => ({
@@ -358,9 +366,9 @@ function renderProjectionLegend(series) {
   styles.className = "projection-styles";
   styles.innerHTML = `
     <span><i class="legend-line history"></i>Actual</span>
-    <span><i class="legend-line total-average"></i>All-data avg</span>
-    <span><i class="legend-line seven-average"></i>Last 7 days</span>
-    <span><i class="legend-line today-rate"></i>Today pace</span>
+    <span><i class="legend-line total-average"></i>Average pace</span>
+    <span><i class="legend-line seven-average"></i>Weekly pace</span>
+    <span><i class="legend-line today-rate"></i>Today's pace</span>
   `;
 
   els.projectionLegend.append(people, styles);
@@ -543,6 +551,11 @@ function attachTooltip(element, text) {
   element.dataset.tooltip = text;
   element.setAttribute("title", text);
   element.setAttribute("tabindex", "0");
+  element.setAttribute("aria-label", text);
+  element.addEventListener("mouseenter", () => showDashboardTooltip(element, text));
+  element.addEventListener("mouseleave", () => hideDashboardTooltip());
+  element.addEventListener("focus", () => showDashboardTooltip(element, text));
+  element.addEventListener("blur", () => hideDashboardTooltip());
   element.addEventListener("click", (event) => {
     event.stopPropagation();
     showDashboardTooltip(element, text);

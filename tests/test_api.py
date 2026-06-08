@@ -621,6 +621,98 @@ def test_competition_api_archiving_default_switching_and_fallback() -> None:
     assert repaired["value"] == fallback_id
 
 
+def test_archived_competition_admin_constraints_and_permanent_delete() -> None:
+    api = client()
+    participant = create_participant(api, "Runner")
+    monthly = create_competition(api)
+
+    added = api.post(
+        f"/api/v1/admin/competitions/{monthly['id']}/participants",
+        headers=admin_headers(),
+        json={"participant_id": participant["id"]},
+    )
+    assert added.status_code == 201
+
+    synced = api.post(
+        "/api/v1/sync/exercise-days",
+        headers=participant_headers(participant),
+        json=sync_payload(minutes=45),
+    )
+    assert synced.status_code == 200
+
+    active_delete = api.delete(f"/api/v1/admin/competitions/{monthly['id']}", headers=admin_headers())
+    assert active_delete.status_code == 422
+    assert active_delete.json()["detail"] == "competition must be archived before permanent delete"
+
+    archived = api.post(f"/api/v1/admin/competitions/{monthly['id']}/archive", headers=admin_headers())
+    assert archived.status_code == 200
+
+    active_admin_ids = {
+        item["id"]
+        for item in api.get("/api/v1/admin/competitions?include_archived=false", headers=admin_headers()).json()
+    }
+    assert monthly["id"] not in active_admin_ids
+
+    edit_archived = api.patch(
+        f"/api/v1/admin/competitions/{monthly['id']}",
+        headers=admin_headers(),
+        json={"name": "Edited Archived"},
+    )
+    assert edit_archived.status_code == 422
+    assert edit_archived.json()["detail"] == "archived competition cannot be modified"
+
+    set_default_archived = api.post(
+        f"/api/v1/admin/competitions/{monthly['id']}/default",
+        headers=admin_headers(),
+    )
+    assert set_default_archived.status_code == 422
+    assert set_default_archived.json()["detail"] == "archived competition cannot be set as default"
+
+    add_archived = api.post(
+        f"/api/v1/admin/competitions/{monthly['id']}/participants",
+        headers=admin_headers(),
+        json={"display_name": "Late Runner", "color": "#3366ff"},
+    )
+    assert add_archived.status_code == 422
+
+    update_archived = api.patch(
+        f"/api/v1/admin/competitions/{monthly['id']}/participants/{participant['id']}",
+        headers=admin_headers(),
+        json={"active": False},
+    )
+    assert update_archived.status_code == 422
+
+    remove_archived = api.delete(
+        f"/api/v1/admin/competitions/{monthly['id']}/participants/{participant['id']}",
+        headers=admin_headers(),
+    )
+    assert remove_archived.status_code == 422
+
+    deleted = api.delete(f"/api/v1/admin/competitions/{monthly['id']}", headers=admin_headers())
+    assert deleted.status_code == 200
+    assert deleted.json() == {"competition_id": monthly["id"], "deleted": True}
+
+    missing = api.get(f"/api/v1/admin/competitions/{monthly['id']}", headers=admin_headers())
+    assert missing.status_code == 404
+
+    participant_after_delete = api.get("/api/v1/admin/participants", headers=admin_headers()).json()
+    assert {item["id"] for item in participant_after_delete} == {participant["id"]}
+    default_state = api.get("/api/v1/competition?as_of_date=2026-01-02").json()
+    assert default_state["participants"][0]["total_minutes"] == 55
+
+
+def test_default_archived_competition_cannot_be_permanently_deleted() -> None:
+    api = client()
+    default_id = api.get("/api/v1/competition").json()["competition"]["id"]
+
+    archived = api.post(f"/api/v1/admin/competitions/{default_id}/archive", headers=admin_headers())
+    assert archived.status_code == 200
+
+    deleted = api.delete(f"/api/v1/admin/competitions/{default_id}", headers=admin_headers())
+    assert deleted.status_code == 422
+    assert deleted.json()["detail"] == "default competition cannot be permanently deleted"
+
+
 def test_competition_memberships_reuse_health_data_with_overrides_and_removal() -> None:
     api = client()
     participant = create_participant(api, "Runner")

@@ -25,6 +25,13 @@ Home Assistant app:
 - Leader and margin calculations.
 - Stale sync detection.
 - Sensor payload generation.
+- Archived competition admin constraints:
+  - Archived competitions are hidden from the main admin competition table.
+  - Archived competitions are reachable from the separate archived view.
+  - Archived competitions cannot be edited.
+  - Archived competition memberships cannot be added, updated, or removed.
+  - Archived competitions can be restored.
+  - Archived competitions can be permanently deleted without deleting participants or exercise days.
 
 Dashboard:
 
@@ -35,6 +42,8 @@ Dashboard:
 - More than two participants.
 - Stale sync warning.
 - Responsive layout.
+- Projection labels read "Today's pace", "Weekly pace", and "Average pace".
+- Projection popups show the projected end-of-competition total minutes for each pace on hover, tap, and keyboard focus.
 
 Repository and packaging:
 
@@ -46,6 +55,7 @@ Repository and packaging:
 ## Integration Tests
 
 - Create competition.
+- Archive, restore, and permanently delete an archived competition.
 - Create participants.
 - Generate pairing QR.
 - Link and unlink a participant from a Home Assistant user/person.

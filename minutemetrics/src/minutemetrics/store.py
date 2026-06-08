@@ -272,6 +272,7 @@ class Store:
 
     def patch_competition(self, competition_id: str, payload: CompetitionPatch) -> dict:
         competition = self.get_competition_row(competition_id)
+        self._require_active_competition(competition)
         updates: dict[str, object] = {}
         if payload.name is not None:
             updates["name"] = payload.name
@@ -307,6 +308,16 @@ class Store:
     def restore_competition(self, competition_id: str) -> dict:
         return self._set_competition_status(competition_id, "active")
 
+    def delete_competition(self, competition_id: str) -> dict:
+        competition = self.get_competition_row(competition_id)
+        if competition["status"] != "archived":
+            raise ValueError("competition must be archived before permanent delete")
+        if competition_id == self.default_competition_id_or_none():
+            raise ValueError("default competition cannot be permanently deleted")
+        with transaction(self.conn):
+            self.conn.execute("DELETE FROM competitions WHERE id = ?", (competition_id,))
+        return {"competition_id": competition_id, "deleted": True}
+
     def _set_competition_status(self, competition_id: str, status: str) -> dict:
         self.get_competition_row(competition_id)
         with transaction(self.conn):
@@ -317,7 +328,8 @@ class Store:
         return self.competition_response(competition_id)
 
     def set_default_competition(self, competition_id: str) -> dict:
-        self.get_competition_row(competition_id)
+        competition = self.get_competition_row(competition_id)
+        self._require_active_competition(competition, "archived competition cannot be set as default")
         with transaction(self.conn):
             self.conn.execute(
                 """
@@ -384,7 +396,8 @@ class Store:
         return row
 
     def add_competition_membership(self, competition_id: str, payload: CompetitionMembershipCreate) -> dict:
-        self.get_competition_row(competition_id)
+        competition = self.get_competition_row(competition_id)
+        self._require_active_competition(competition)
         participant_id = payload.participant_id
         token = None
         now = iso_now()
@@ -446,6 +459,7 @@ class Store:
         participant_id: str,
         payload: CompetitionMembershipPatch,
     ) -> dict:
+        self._require_active_competition(self.get_competition_row(competition_id))
         self.get_competition_membership_row(competition_id, participant_id)
         updates: dict[str, object | None] = {}
         if "display_name_override" in payload.model_fields_set:
@@ -465,6 +479,7 @@ class Store:
         return row_to_membership(self.get_competition_membership_row(competition_id, participant_id))
 
     def delete_competition_membership(self, competition_id: str, participant_id: str) -> dict:
+        self._require_active_competition(self.get_competition_row(competition_id))
         self.get_competition_membership_row(competition_id, participant_id)
         with transaction(self.conn):
             self.conn.execute(
@@ -963,3 +978,11 @@ class Store:
     def _slugify(value: str) -> str:
         safe = "".join(ch.lower() if ch.isalnum() else "-" for ch in value).strip("-")
         return "-".join(part for part in safe.split("-") if part) or "competition"
+
+    @staticmethod
+    def _require_active_competition(
+        competition: sqlite3.Row,
+        message: str = "archived competition cannot be modified",
+    ) -> None:
+        if competition["status"] == "archived":
+            raise ValueError(message)

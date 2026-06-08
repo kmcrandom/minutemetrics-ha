@@ -54,10 +54,13 @@ The projection graph is a combined SVG chart for all active participants in the 
 - Historical lines are thick, solid, stepped lines in each participant's color.
 - Future data starts after local today and runs through the configured competition end date.
 - Each participant has three thinner projection lines:
-  - all-data average: total minutes divided by elapsed competition days.
-  - last 7 days average: average of the most recent seven local days.
-  - today pace: current local day's minutes repeated for every remaining day.
+  - Average pace: total minutes divided by elapsed competition days.
+  - Weekly pace: average of the most recent seven local days.
+  - Today's pace: current local day's minutes repeated for every remaining day.
 - The graph includes a visible Today marker, y-axis minute labels, month ticks, and a legend.
+- Projection labels use the exact display text "Today's pace", "Weekly pace", and "Average pace".
+- Hovering, tapping, or keyboard-focusing each projection label or line shows a popup with the projected total minutes that participant would have at the end of the competition if they kept that pace.
+- Projection popups are accessible on touch devices and dismiss when focus moves away, the user taps another projection, or the user closes the popup.
 - Projections are visual guidance only; stored data remains daily actual totals.
 
 ## Last 14 Days
@@ -140,3 +143,5 @@ Expected derived values:
 - Dashboard can be embedded in Home Assistant.
 - Unauthenticated dashboard data requests return `401 Unauthorized`.
 - A participant sync token can only list and view competitions where that participant is an active member.
+- Projection legend labels read "Today's pace", "Weekly pace", and "Average pace".
+- Each projection mode exposes a hover/tap/focus popup showing the participant's end-of-competition total minutes for that pace.
