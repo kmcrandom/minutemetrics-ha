@@ -835,6 +835,34 @@ dd {
   justify-content: flex-end;
 }
 
+.readonly-details {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+  margin: 0;
+}
+
+.readonly-details div {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-2);
+}
+
+.readonly-details dt {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 750;
+  text-transform: uppercase;
+}
+
+.readonly-details dd {
+  margin: 0;
+  font-weight: 750;
+}
+
 .danger-panel {
   border-color: color-mix(in srgb, var(--bad) 35%, var(--line));
 }
@@ -926,6 +954,15 @@ dd {
   fill: none;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+.projection-hitbox {
+  fill: none;
+  stroke: transparent;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 16;
+  cursor: pointer;
 }
 
 .projection-history {
@@ -1171,6 +1208,7 @@ dd {
 }
 
 .projection-line,
+.projection-hitbox,
 .bar-row,
 .bar-track,
 .heat-cell {
@@ -1178,6 +1216,7 @@ dd {
 }
 
 .projection-line:focus-visible,
+.projection-hitbox:focus-visible,
 .bar-row:focus-visible,
 .bar-track:focus-visible,
 .heat-cell:focus-visible {
@@ -1199,6 +1238,7 @@ dd {
   font-weight: 700;
   line-height: 1.35;
   white-space: pre-line;
+  overflow-wrap: anywhere;
 }
 
 .dashboard-tooltip[hidden] {

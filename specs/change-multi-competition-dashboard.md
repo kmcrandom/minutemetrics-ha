@@ -274,18 +274,27 @@ GET /api/v1/admin/competitions/{competition_id}
 PATCH /api/v1/admin/competitions/{competition_id}
 POST /api/v1/admin/competitions/{competition_id}/archive
 POST /api/v1/admin/competitions/{competition_id}/restore
-```
-
-Optional later endpoint:
-
-```http
 DELETE /api/v1/admin/competitions/{competition_id}
 ```
 
 Delete behavior:
 
-- Initial implementation should archive rather than hard-delete competitions.
-- Hard delete is intentionally deferred because exercise day rows are shared across competitions.
+- Active competitions cannot be hard-deleted. They must be archived first.
+- Archived competitions can be permanently deleted from the admin UI.
+- Permanently deleting a competition deletes the competition row and its memberships.
+- Permanently deleting a competition does not delete global participants or `exercise_days`, because Health day rows are shared across competitions.
+- The default competition cannot be permanently deleted while it is still the configured default. Admins must restore it or choose another default before deleting it.
+- Permanent delete requires an explicit destructive confirmation in the UI.
+
+Archived competition behavior:
+
+- Archived competitions are hidden from the main admin competition table.
+- The admin UI provides a separate way to navigate to archived competitions, such as an "Archived" view or filter link.
+- Archived competition detail pages are read-only except for restore and permanent delete.
+- Admins cannot edit name, slug, start date, or end date while a competition is archived.
+- Admins cannot set an archived competition as the default competition.
+- Admins cannot add, update, activate/deactivate, or remove participant memberships while a competition is archived.
+- Server endpoints that mutate archived competition details or memberships return a client error instead of silently applying the change.
 
 ### Membership Admin
 
@@ -308,6 +317,7 @@ DELETE /api/v1/admin/competitions/{competition_id}/participants/{participant_id}
 - Removes membership only.
 - Does not delete the participant.
 - Does not delete `exercise_days`.
+- Is not allowed while the competition is archived.
 
 ### Private Dashboard Competition State
 

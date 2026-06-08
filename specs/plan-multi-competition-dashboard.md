@@ -447,6 +447,73 @@ Definition of done:
 9. `ha-competition-entities`
 10. iOS multi-competition support in the iOS repository
 
+## Current Change Addendum: Archived Admin Actions And Projection Popups
+
+This addendum implements the approved archived competition and projection tooltip refinements.
+
+### Scope
+
+- Hide archived competitions from the main admin competition table.
+- Add a separate archived competitions navigation path in the admin UI.
+- Make archived competition detail pages read-only except for restore and permanent delete.
+- Add permanent delete for archived competitions only.
+- Block archived competition edits and membership mutations in the backend.
+- Rename dashboard projection labels to "Today's pace", "Weekly pace", and "Average pace".
+- Add hover, tap, and keyboard-focus projection popups that show the projected end-of-competition total minutes for each participant and pace.
+
+### Backend Tasks
+
+1. Add store validation helpers for archived competition mutation rules in [store.py](/Users/kevin/Programming/minutemetrics-ha/minutemetrics/src/minutemetrics/store.py).
+2. Add `delete_competition` in the store:
+   - Return a client error when the competition is active.
+   - Return a client error when the archived competition is still the configured default.
+   - Delete only the competition and memberships.
+3. Block `update_competition`, `add_competition_participant`, `update_competition_participant`, and `remove_competition_participant` when the competition is archived.
+4. Expose `DELETE /api/v1/admin/competitions/{competition_id}` in [app.py](/Users/kevin/Programming/minutemetrics-ha/minutemetrics/src/minutemetrics/app.py).
+
+### Admin UI Tasks
+
+1. Change [admin.js](/Users/kevin/Programming/minutemetrics-ha/minutemetrics/src/minutemetrics/static/admin.js) to load all competitions but render only active competitions in the main table.
+2. Add an archived competitions route or filter link that lists archived competitions.
+3. In archived competition detail, disable or hide edit and membership mutation controls while keeping restore and permanent delete available.
+4. Add destructive confirmation before permanent delete and navigate back to the archived list after success.
+5. Add or adjust styles in [styles.css](/Users/kevin/Programming/minutemetrics-ha/minutemetrics/src/minutemetrics/static/styles.css) only as needed for the archived navigation and read-only state.
+
+### Dashboard Tasks
+
+1. Rename projection rate labels in [app.js](/Users/kevin/Programming/minutemetrics-ha/minutemetrics/src/minutemetrics/static/app.js).
+2. Compute and store each projection's final total minutes for tooltip display.
+3. Add SVG line/title or HTML popup behavior for hover, tap, and keyboard focus.
+4. Ensure projection lines or legend controls are keyboard focusable and have meaningful accessible labels.
+5. Add CSS for projection popup placement, wrapping, and responsive behavior.
+
+### Tests And Verification
+
+1. Add backend tests in [tests/test_api.py](/Users/kevin/Programming/minutemetrics-ha/tests/test_api.py) for:
+   - Admin list excluding archived competitions by default when `include_archived` is false.
+   - Archived competition update rejection.
+   - Archived membership add/update/remove rejection.
+   - Active competition permanent delete rejection.
+   - Default archived competition permanent delete rejection.
+   - Archived non-default competition permanent delete removing memberships while preserving participants and exercise days.
+2. Run:
+
+```bash
+.venv/bin/python -m pytest -q tests/test_api.py
+```
+
+3. Run the app locally and use the Browser plugin for admin and dashboard smoke checks:
+   - Main admin competition table omits archived competitions.
+   - Archived view reaches archived detail.
+   - Archived detail only exposes restore/delete actions.
+   - Projection labels and popups behave on desktop and mobile-sized viewports.
+
+### Risks
+
+- Permanent delete must not remove shared `exercise_days`; tests should prove that preserved data remains available to other competitions.
+- The dashboard SVG currently uses native SVG titles for line tooltips; custom tap/focus behavior may need lightweight DOM state to be reliable on touch devices.
+- Admin UI state already fetches archived competitions for detail lookup, so table filtering must not accidentally make archived detail routes unreachable.
+
 ## Risk Register
 
 ### Migration Data Loss

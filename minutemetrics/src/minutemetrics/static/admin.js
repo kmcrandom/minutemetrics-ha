@@ -92,6 +92,10 @@ function renderRoute() {
     renderCompetitionNew();
     return;
   }
+  if (route === "competitions/archived") {
+    renderArchivedCompetitions();
+    return;
+  }
   if (route.startsWith("competitions/")) {
     renderCompetitionDetail(route.split("/")[1]);
     return;
@@ -104,12 +108,14 @@ function renderRoute() {
 }
 
 function renderOverview() {
+  const activeCompetitions = state.competitions.filter((competition) => competition.status !== "archived");
+  const archivedCount = state.competitions.length - activeCompetitions.length;
   const section = el("section", { className: "admin-pages" }, [
     panel([
       panelHead("Competitions"),
       table(
         ["Name", "Date range"],
-        state.competitions,
+        activeCompetitions,
         (competition) => [
           cellLink(competition.name, `#/competitions/${competition.id}`),
           formatDateRange(competition),
@@ -118,6 +124,9 @@ function renderOverview() {
       ),
       el("div", { className: "table-actions" }, [
         el("a", { className: "primary-button", href: "#/competitions/new" }, ["Add Competition"]),
+        el("a", { className: "secondary-button", href: "#/competitions/archived" }, [
+          `Archived${archivedCount ? ` (${archivedCount})` : ""}`,
+        ]),
       ]),
     ]),
     panel([
@@ -134,6 +143,22 @@ function renderOverview() {
     ]),
   ]);
   setView(section);
+}
+
+function renderArchivedCompetitions() {
+  const archived = state.competitions.filter((competition) => competition.status === "archived");
+  setView(panel([
+    pageHead("Archived Competitions", "Restore or permanently delete archived competitions."),
+    table(
+      ["Name", "Date range"],
+      archived,
+      (competition) => [
+        cellLink(competition.name, `#/competitions/${competition.id}`),
+        formatDateRange(competition),
+      ],
+      "No archived competitions."
+    ),
+  ]));
 }
 
 function renderCompetitionNew() {
@@ -157,6 +182,10 @@ function renderCompetitionDetail(competitionId) {
 
 async function loadCompetitionDetail(competition) {
   state.memberships = await fetchJson(`api/v1/admin/competitions/${competition.id}/participants`);
+  if (competition.status === "archived") {
+    renderArchivedCompetitionDetail(competition);
+    return;
+  }
   const form = competitionForm(competition, "Save");
   form.addEventListener("submit", (event) => updateCompetition(event, competition, form));
 
@@ -185,6 +214,41 @@ async function loadCompetitionDetail(competition) {
     ]),
     backLink(),
   ]));
+}
+
+function renderArchivedCompetitionDetail(competition) {
+  setView(el("section", { className: "admin-pages" }, [
+    panel([
+      pageHead(competition.name, "Archived competitions are read-only. Restore or permanently delete this competition."),
+      competitionSummary(competition),
+      el("div", { className: "admin-actions detail-actions" }, [
+        el("button", {
+          className: "secondary-button",
+          type: "button",
+          onclick: () => toggleArchiveCompetition(competition),
+        }, ["Restore"]),
+        el("button", {
+          className: "danger-button",
+          type: "button",
+          onclick: () => deleteCompetition(competition),
+        }, ["Delete Permanently"]),
+      ]),
+    ]),
+    panel([
+      panelHead("Competition Participants"),
+      membersTable(competition, true),
+    ]),
+    backLink("competitions/archived", "Back To Archived"),
+  ]));
+}
+
+function competitionSummary(competition) {
+  return el("dl", { className: "readonly-details" }, [
+    el("div", {}, [el("dt", {}, ["Slug"]), el("dd", {}, [competition.slug])]),
+    el("div", {}, [el("dt", {}, ["Date range"]), el("dd", {}, [formatDateRange(competition)])]),
+    el("div", {}, [el("dt", {}, ["Participants"]), el("dd", {}, [competition.participant_count])]),
+    el("div", {}, [el("dt", {}, ["Status"]), el("dd", {}, [competition.status])]),
+  ]);
 }
 
 function renderParticipantDetail(participantId) {
@@ -244,11 +308,11 @@ function memberAddForm(competition) {
   return form;
 }
 
-function membersTable(competition) {
+function membersTable(competition, readOnly = false) {
   if (!state.memberships.length) {
     return el("div", { className: "empty" }, ["No participants in this competition yet."]);
   }
-  const rows = state.memberships.map((membership) => memberRow(competition, membership));
+  const rows = state.memberships.map((membership) => memberRow(competition, membership, readOnly));
   return el("div", { className: "responsive-table" }, [
     el("table", { className: "admin-table member-edit-table" }, [
       el("thead", {}, [el("tr", {}, ["Name", "Color", "Active", "Last sync", ""].map((heading) => el("th", {}, [heading])))]),
@@ -257,7 +321,16 @@ function membersTable(competition) {
   ]);
 }
 
-function memberRow(competition, membership) {
+function memberRow(competition, membership, readOnly = false) {
+  if (readOnly) {
+    return el("tr", {}, [
+      el("td", {}, [membership.display_name]),
+      el("td", {}, [colorCell(membership.color)]),
+      el("td", {}, [membership.active ? "Yes" : "No"]),
+      el("td", {}, [membership.last_synced_at ? relativeTime(membership.last_synced_at) : "No sync yet"]),
+      el("td", { className: "row-actions" }, []),
+    ]);
+  }
   const name = el("input", {
     type: "text",
     value: membership.display_name_override || membership.participant_display_name,
@@ -357,6 +430,20 @@ async function toggleArchiveCompetition(competition) {
     await loadAdminData();
     navigate(`competitions/${competition.id}`);
     setStatus(`${competition.name} ${verb === "archive" ? "archived" : "restored"}.`);
+  } catch (error) {
+    setStatus(error.message, true);
+  }
+}
+
+async function deleteCompetition(competition) {
+  const message = `Permanently delete ${competition.name}? This cannot be undone. Participants and synced Health data will remain.`;
+  if (!confirm(message)) return;
+  setStatus(`Deleting ${competition.name}...`);
+  try {
+    await fetchJson(`api/v1/admin/competitions/${competition.id}`, { method: "DELETE" });
+    await loadAdminData();
+    navigate("competitions/archived");
+    setStatus(`Deleted ${competition.name}.`);
   } catch (error) {
     setStatus(error.message, true);
   }
@@ -562,8 +649,10 @@ function pageHead(title, description) {
   ]);
 }
 
-function backLink() {
-  return el("div", { className: "table-actions" }, [el("a", { className: "secondary-button", href: "#/" }, ["Back To Admin"])]);
+function backLink(route = "", label = "Back To Admin") {
+  return el("div", { className: "table-actions" }, [
+    el("a", { className: "secondary-button", href: route ? `#/${route}` : "#/" }, [label]),
+  ]);
 }
 
 function cellLink(label, href) {
