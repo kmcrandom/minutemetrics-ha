@@ -1,5 +1,14 @@
 # MinuteMetrics Changelog
 
+## 0.2.8
+
+- Added a separate Admin archived competitions view.
+- Hid archived competitions from the main Admin competition table.
+- Kept archived competition details read-only except for restore and permanent delete.
+- Allowed permanent deletion of archived non-default competitions while preserving participants and synced exercise data.
+- Renamed projection labels to Average pace, Weekly pace, and Today's pace.
+- Added projection popups that show each participant's projected end-of-competition total minutes.
+
 ## 0.2.7
 
 - Kept the dashboard header actions inline with the competition title on narrow screens.
