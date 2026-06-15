@@ -1,5 +1,11 @@
 # MinuteMetrics Changelog
 
+## 0.2.9
+
+- Added copyable server URL and sync token fields to the Admin pairing QR dialog.
+- Kept the displayed sync token masked while copying the exact unmasked pairing token.
+- Cleared pairing values from the dialog when it closes.
+
 ## 0.2.8
 
 - Added a separate Admin archived competitions view.
