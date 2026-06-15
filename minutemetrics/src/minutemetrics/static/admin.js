@@ -30,6 +30,11 @@ const els = {
   pairingDialog: document.querySelector("#pairingDialog"),
   pairingTitle: document.querySelector("#pairingTitle"),
   qrFrame: document.querySelector("#qrFrame"),
+  pairingServerUrl: document.querySelector("#pairingServerUrl"),
+  pairingSyncToken: document.querySelector("#pairingSyncToken"),
+  copyPairingServerUrl: document.querySelector("#copyPairingServerUrl"),
+  copyPairingSyncToken: document.querySelector("#copyPairingSyncToken"),
+  pairingCopyStatus: document.querySelector("#pairingCopyStatus"),
   closePairing: document.querySelector("#closePairing"),
 };
 
@@ -38,6 +43,9 @@ els.tokenForm.addEventListener("submit", (event) => unlock(event));
 els.clearAdminToken.addEventListener("click", () => clearAdminToken());
 els.clearData.addEventListener("click", () => clearSyncData());
 els.closePairing.addEventListener("click", () => els.pairingDialog.close());
+els.pairingDialog.addEventListener("close", () => clearPairingDialog());
+els.copyPairingServerUrl.addEventListener("click", () => copyPairingValue("Server URL", els.pairingServerUrl.value));
+els.copyPairingSyncToken.addEventListener("click", () => copyPairingValue("Sync token", els.pairingSyncToken.value));
 window.addEventListener("hashchange", () => renderRoute());
 
 loadAppConfig().then(() => {
@@ -589,10 +597,11 @@ function clearAdminToken() {
 }
 
 async function showPairingQR(displayName, syncToken) {
+  const serverUrl = pairingServerUrl();
   const response = await fetch("api/v1/admin/pairing-qr", {
     method: "POST",
     headers: adminHeaders({ "Content-Type": "application/json" }),
-    body: JSON.stringify({ server_url: pairingServerUrl(), sync_token: syncToken }),
+    body: JSON.stringify({ server_url: serverUrl, sync_token: syncToken }),
   });
   if (!response.ok) {
     const body = await readJson(response);
@@ -601,7 +610,35 @@ async function showPairingQR(displayName, syncToken) {
   const svg = await response.text();
   els.pairingTitle.textContent = displayName;
   els.qrFrame.innerHTML = svg;
+  els.pairingServerUrl.value = serverUrl;
+  els.pairingSyncToken.value = syncToken;
+  setPairingCopyStatus("");
   els.pairingDialog.showModal();
+}
+
+async function copyPairingValue(label, value) {
+  if (!value) {
+    setPairingCopyStatus(`${label} is not available.`, true);
+    return;
+  }
+  try {
+    await navigator.clipboard.writeText(value);
+    setPairingCopyStatus(`${label} copied.`);
+  } catch {
+    setPairingCopyStatus(`Unable to copy ${label.toLowerCase()}.`, true);
+  }
+}
+
+function clearPairingDialog() {
+  els.qrFrame.replaceChildren();
+  els.pairingServerUrl.value = "";
+  els.pairingSyncToken.value = "";
+  setPairingCopyStatus("");
+}
+
+function setPairingCopyStatus(message, isError = false) {
+  els.pairingCopyStatus.textContent = message;
+  els.pairingCopyStatus.classList.toggle("error", isError);
 }
 
 function table(headings, rows, rowCells, emptyMessage) {
