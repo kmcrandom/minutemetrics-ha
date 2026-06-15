@@ -103,6 +103,9 @@ Dashboard data endpoints require dashboard data access:
 - Add a new competition on a dedicated page.
 - Create participant.
 - Show pairing QR code after participant creation.
+- While the pairing QR code is visible, also show the server URL and sync token fields.
+- Provide a copy button for the server URL field and a copy button for the sync token field.
+- Mask the displayed sync token like a password, while copying the full unmasked token value.
 - Edit participant display name.
 - Pick participant color.
 - Link, change, or clear optional Home Assistant user/person association.
@@ -118,6 +121,8 @@ Pairing QR payload:
 - Use `minutemetrics://pair?server_url=<encoded-url>&sync_token=<encoded-token>`.
 - The sync token is only available immediately after participant creation or token rotation.
 - The UI must treat the sync token as a secret and should not show it after the pairing moment unless explicitly rotated.
+- During the pairing moment, the server URL should be readable and copyable, and the sync token should be copyable but visually masked.
+- Copy actions should copy the exact values embedded in the QR payload and should provide clear success or failure feedback.
 
 ## Implementation Plan
 
@@ -143,6 +148,8 @@ Pairing QR payload:
 - Admin can create participants and generate setup links.
 - Admin can create participants from the dashboard without using curl.
 - Admin receives a QR code that can configure the iOS app with server URL and sync token.
+- Admin can copy the server URL and the exact sync token while the QR code is displayed.
+- The sync token is masked on screen while remaining copyable as the original token.
 - Admin can optionally link a participant to a Home Assistant user/person and later clear that link.
 - iOS app can sync with participant token.
 - Dashboard loads from Home Assistant with full data through trusted ingress identity.

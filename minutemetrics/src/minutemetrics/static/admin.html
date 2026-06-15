@@ -50,6 +50,23 @@
         </button>
       </div>
       <div class="qr-frame" id="qrFrame"></div>
+      <div class="pairing-fields">
+        <label>
+          <span>Server URL</span>
+          <span class="pairing-copy-row">
+            <input id="pairingServerUrl" type="text" readonly>
+            <button class="secondary-button" id="copyPairingServerUrl" type="button">Copy</button>
+          </span>
+        </label>
+        <label>
+          <span>Sync token</span>
+          <span class="pairing-copy-row">
+            <input id="pairingSyncToken" type="password" readonly>
+            <button class="secondary-button" id="copyPairingSyncToken" type="button">Copy</button>
+          </span>
+        </label>
+        <p class="pairing-copy-status" id="pairingCopyStatus" aria-live="polite"></p>
+      </div>
       <p class="pairing-note">Open MinuteMetrics on the iPhone and scan this code to save the server URL and sync token.</p>
     </dialog>
 

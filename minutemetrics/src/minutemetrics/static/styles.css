@@ -901,6 +901,56 @@ dd {
   height: auto;
 }
 
+.pairing-fields {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.pairing-fields label {
+  display: grid;
+  gap: 6px;
+}
+
+.pairing-fields label > span:first-child {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 750;
+  text-transform: uppercase;
+}
+
+.pairing-copy-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.pairing-copy-row input {
+  min-width: 0;
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: var(--panel-2);
+  color: var(--text);
+  font: inherit;
+}
+
+.pairing-copy-row button {
+  align-self: stretch;
+}
+
+.pairing-copy-status {
+  min-height: 20px;
+  margin: 0;
+  color: var(--accent);
+  font-size: 13px;
+}
+
+.pairing-copy-status.error {
+  color: var(--bad);
+}
+
 .pairing-note {
   margin-top: 12px;
   color: var(--muted);
@@ -1348,6 +1398,10 @@ dd {
   .admin-actions .secondary-button,
   .admin-actions .danger-button {
     flex: 1;
+  }
+
+  .pairing-copy-row {
+    grid-template-columns: 1fr;
   }
 
   .projection-svg {
