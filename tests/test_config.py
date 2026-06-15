@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 
+import pytest
+
 from minutemetrics.config import load_settings
 
 
@@ -57,3 +59,42 @@ def test_environment_overrides_home_assistant_options(tmp_path, monkeypatch) -> 
     assert settings.dashboard_token == "env-dashboard-token"
     assert settings.db_path == str(tmp_path / "env.sqlite")
     assert settings.server_url == "https://env.example.test"
+
+
+def test_placeholder_admin_token_is_rejected(tmp_path, monkeypatch) -> None:
+    options_path = tmp_path / "options.json"
+    options_path.write_text(
+        json.dumps({"auth": {"admin_token": "change-me-before-use"}}),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setenv("MINUTEMETRICS_OPTIONS_PATH", str(options_path))
+    monkeypatch.delenv("MINUTEMETRICS_ADMIN_TOKEN", raising=False)
+
+    with pytest.raises(ValueError, match="auth.admin_token"):
+        load_settings()
+
+
+def test_missing_admin_token_is_rejected(tmp_path, monkeypatch) -> None:
+    options_path = tmp_path / "options.json"
+    options_path.write_text(json.dumps({}), encoding="utf-8")
+
+    monkeypatch.setenv("MINUTEMETRICS_OPTIONS_PATH", str(options_path))
+    monkeypatch.delenv("MINUTEMETRICS_ADMIN_TOKEN", raising=False)
+
+    with pytest.raises(ValueError, match="auth.admin_token"):
+        load_settings()
+
+
+def test_placeholder_environment_admin_token_is_rejected(tmp_path, monkeypatch) -> None:
+    options_path = tmp_path / "options.json"
+    options_path.write_text(
+        json.dumps({"auth": {"admin_token": "ha-admin-token"}}),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setenv("MINUTEMETRICS_OPTIONS_PATH", str(options_path))
+    monkeypatch.setenv("MINUTEMETRICS_ADMIN_TOKEN", "change-me-before-use")
+
+    with pytest.raises(ValueError, match="auth.admin_token"):
+        load_settings()

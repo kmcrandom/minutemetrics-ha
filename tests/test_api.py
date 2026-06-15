@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import sqlite3
-from datetime import date
+from datetime import date, timedelta
 
 from fastapi.testclient import TestClient
+import pytest
 
 from minutemetrics import __version__
 from minutemetrics.app import create_app, pairing_url
@@ -281,6 +282,44 @@ def test_participant_token_only_reads_assigned_competitions() -> None:
     assert other_state.status_code == 404
 
 
+def test_participant_dashboard_redacts_home_assistant_identity_metadata() -> None:
+    api = client()
+    first = api.post(
+        "/api/v1/admin/participants",
+        headers=admin_headers(),
+        json={
+            "display_name": "Runner One",
+            "color": "#28a745",
+            "home_assistant_user_id": "ha-user-one",
+            "home_assistant_person_entity_id": "person.runner_one",
+        },
+    ).json()
+    second = api.post(
+        "/api/v1/admin/participants",
+        headers=admin_headers(),
+        json={
+            "display_name": "Runner Two",
+            "color": "#3366ff",
+            "home_assistant_user_id": "ha-user-two",
+            "home_assistant_person_entity_id": "person.runner_two",
+        },
+    ).json()
+
+    full_state = api.get("/api/v1/competition", headers=dashboard_headers()).json()
+    participant_state = api.get("/api/v1/competition", headers=participant_headers(first)).json()
+
+    full_by_id = {item["id"]: item for item in full_state["participants"]}
+    scoped_by_id = {item["id"]: item for item in participant_state["participants"]}
+    assert full_by_id[first["id"]]["home_assistant_user_id"] == "ha-user-one"
+    assert full_by_id[second["id"]]["home_assistant_person_entity_id"] == "person.runner_two"
+    assert scoped_by_id[first["id"]]["home_assistant_user_id"] is None
+    assert scoped_by_id[first["id"]]["home_assistant_person_entity_id"] is None
+    assert scoped_by_id[second["id"]]["home_assistant_user_id"] is None
+    assert scoped_by_id[second["id"]]["home_assistant_person_entity_id"] is None
+    assert participant_state["leader"]["home_assistant_user_id"] is None
+    assert participant_state["leader"]["home_assistant_person_entity_id"] is None
+
+
 def test_home_assistant_ingress_identity_can_read_dashboard_data() -> None:
     conn = connect(":memory:")
     app = create_app(
@@ -461,6 +500,67 @@ def test_sync_requires_participant_token_and_upserts_days() -> None:
     assert updated.status_code == 200
     assert updated.json()["changed_count"] == 1
     assert updated.json()["total_minutes"] == 45
+
+
+def test_sync_accepts_full_year_payload_within_limits() -> None:
+    api = client()
+    participant = create_participant(api)
+    start = date(2026, 1, 1)
+    days = [
+        {"date": (start + timedelta(days=offset)).isoformat(), "exercise_minutes": 1}
+        for offset in range(365)
+    ]
+
+    response = api.post(
+        "/api/v1/sync/exercise-days",
+        headers=participant_headers(participant),
+        json={
+            "device": {"name": "Participant iPhone", "app_version": "1.0.0", "ios_version": "18.0"},
+            "range": {"start_date": "2026-01-01", "end_date": "2026-12-31"},
+            "timezone_identifier": "America/New_York",
+            "days": days,
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["accepted_count"] == 365
+    assert response.json()["total_minutes"] == 365
+
+
+@pytest.mark.parametrize(
+    "payload_update",
+    [
+        {
+            "range": {"start_date": "2026-01-01", "end_date": "2027-02-05"},
+            "days": [{"date": "2026-01-01", "exercise_minutes": 1}],
+        },
+        {
+            "days": [
+                {"date": (date(2026, 1, 1) + timedelta(days=offset)).isoformat(), "exercise_minutes": 1}
+                for offset in range(401)
+            ],
+        },
+        {"days": [{"date": "2026-01-03", "exercise_minutes": 1}]},
+        {"days": [{"date": "2026-01-01", "exercise_minutes": 1441}]},
+        {"timezone_identifier": "A" * 129},
+        {"device": {"name": "A" * 129, "app_version": "1.0.0", "ios_version": "18.0"}},
+    ],
+)
+def test_invalid_sync_payloads_are_rejected_without_partial_writes(payload_update: dict) -> None:
+    api = client()
+    participant = create_participant(api)
+    payload = sync_payload()
+    payload.update(payload_update)
+
+    response = api.post(
+        "/api/v1/sync/exercise-days",
+        headers=participant_headers(participant),
+        json=payload,
+    )
+
+    assert response.status_code == 422
+    count = api.app.state.store.conn.execute("SELECT COUNT(*) AS count FROM exercise_days").fetchone()
+    assert count["count"] == 0
 
 
 def test_competition_state_filters_totals_to_competition_date_range() -> None:

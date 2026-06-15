@@ -46,3 +46,5 @@ MinuteMetrics solves this by letting each participant authorize an iOS app to re
 - The iOS app is the source of truth for Apple Health reads because HealthKit requires local, permissioned access on each phone.
 - The Home Assistant app is the source of truth for shared aggregation and dashboard rendering.
 - Daily totals are stored instead of only cumulative totals so late edits, charts, and audit views are possible.
+- Participant sync is trust-based for the initial release: possession of a participant sync token authorizes that participant's HealthKit-derived daily totals. The server still enforces plausibility and request-size bounds to protect shared availability and competition integrity, but cryptographic HealthKit attestation or anti-cheat proof is not part of the initial release unless promoted by a later spec.
+- Home Assistant user IDs and `person` entity IDs are integration metadata, not participant-visible scoreboard data. Participant-scoped viewers should see competition data without receiving Home Assistant identity metadata.

@@ -7,29 +7,49 @@ from pydantic import BaseModel, Field, model_validator
 
 
 CompetitionStatus = Literal["active", "archived"]
+MAX_SYNC_DAYS_PER_REQUEST = 400
+MAX_SYNC_DATE_SPAN_DAYS = 400
+MAX_EXERCISE_MINUTES_PER_DAY = 1440
+MAX_SYNC_METADATA_LENGTH = 128
 
 
 class DevicePayload(BaseModel):
-    name: str | None = None
-    app_version: str | None = None
-    ios_version: str | None = None
+    name: str | None = Field(default=None, max_length=MAX_SYNC_METADATA_LENGTH)
+    app_version: str | None = Field(default=None, max_length=MAX_SYNC_METADATA_LENGTH)
+    ios_version: str | None = Field(default=None, max_length=MAX_SYNC_METADATA_LENGTH)
 
 
 class DateRangePayload(BaseModel):
     start_date: date
     end_date: date
 
+    @model_validator(mode="after")
+    def valid_date_span(self) -> "DateRangePayload":
+        span_days = (self.end_date - self.start_date).days + 1
+        if span_days < 1:
+            raise ValueError("end_date must be on or after start_date")
+        if span_days > MAX_SYNC_DATE_SPAN_DAYS:
+            raise ValueError(f"date range cannot exceed {MAX_SYNC_DATE_SPAN_DAYS} days")
+        return self
+
 
 class ExerciseDayPayload(BaseModel):
     date: date
-    exercise_minutes: int = Field(ge=0)
+    exercise_minutes: int = Field(ge=0, le=MAX_EXERCISE_MINUTES_PER_DAY)
 
 
 class ExerciseSyncPayload(BaseModel):
     device: DevicePayload = Field(default_factory=DevicePayload)
     range: DateRangePayload
-    timezone_identifier: str
-    days: list[ExerciseDayPayload]
+    timezone_identifier: str = Field(min_length=1, max_length=MAX_SYNC_METADATA_LENGTH)
+    days: list[ExerciseDayPayload] = Field(max_length=MAX_SYNC_DAYS_PER_REQUEST)
+
+    @model_validator(mode="after")
+    def days_within_declared_range(self) -> "ExerciseSyncPayload":
+        for item in self.days:
+            if item.date < self.range.start_date or item.date > self.range.end_date:
+                raise ValueError("all exercise days must fall within the declared range")
+        return self
 
 
 class ParticipantCreate(BaseModel):

@@ -331,9 +331,12 @@ def create_app(settings: Settings | None = None, conn: sqlite3.Connection | None
         access: DashboardAccess = Depends(require_dashboard_access),
     ) -> dict:
         return _store_guard(
-            lambda: store.competition_state(
-                competition_id=visible_default_competition_id(access),
-                as_of_date=as_of_date.isoformat() if as_of_date else None,
+            lambda: _project_competition_state(
+                store.competition_state(
+                    competition_id=visible_default_competition_id(access),
+                    as_of_date=as_of_date.isoformat() if as_of_date else None,
+                ),
+                access,
             )
         )
 
@@ -352,9 +355,12 @@ def create_app(settings: Settings | None = None, conn: sqlite3.Connection | None
         return _store_guard(
             lambda: (
                 require_visible_competition(access, competition_id),
-                store.competition_state(
-                    competition_id=competition_id,
-                    as_of_date=as_of_date.isoformat() if as_of_date else None,
+                _project_competition_state(
+                    store.competition_state(
+                        competition_id=competition_id,
+                        as_of_date=as_of_date.isoformat() if as_of_date else None,
+                    ),
+                    access,
                 ),
             )[1],
             competition_id,
@@ -405,10 +411,32 @@ def _competition_state_for_slug(
 ) -> dict:
     competition_id = store.get_competition_row_by_slug(slug)["id"]
     require_visible_competition(access, competition_id)
-    return store.competition_state(
-        competition_id=competition_id,
-        as_of_date=as_of_date.isoformat() if as_of_date else None,
+    return _project_competition_state(
+        store.competition_state(
+            competition_id=competition_id,
+            as_of_date=as_of_date.isoformat() if as_of_date else None,
+        ),
+        access,
     )
+
+
+def _project_competition_state(state: dict, access: DashboardAccess) -> dict:
+    if access.is_full:
+        return state
+    projected = {**state}
+    participants = [_redact_home_assistant_identity(participant) for participant in state["participants"]]
+    projected["participants"] = participants
+    leader = state["leader"]
+    projected["leader"] = _redact_home_assistant_identity(leader) if leader is not None else None
+    return projected
+
+
+def _redact_home_assistant_identity(participant: dict) -> dict:
+    return {
+        **participant,
+        "home_assistant_user_id": None,
+        "home_assistant_person_entity_id": None,
+    }
 
 
 def _trusted_home_assistant_ingress(request: Request) -> bool:
