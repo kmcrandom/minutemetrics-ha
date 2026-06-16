@@ -48,8 +48,8 @@ Participants can optionally be linked to Home Assistant users or `person` entiti
 Security hardening:
 
 - The shipped `auth.admin_token` value is a placeholder only and must not be accepted as a live admin credential.
-- Runtime startup or admin API initialization must fail closed when `auth.admin_token` is empty, missing, or equal to `change-me-before-use`.
-- Local development may continue to use `MINUTEMETRICS_ADMIN_TOKEN`, but it must also be non-placeholder.
+- Runtime startup or admin API initialization must fail closed when `auth.admin_token` is empty, missing, equal to `change-me-before-use`, or shorter than 32 characters after trimming surrounding whitespace.
+- Local development may continue to use `MINUTEMETRICS_ADMIN_TOKEN`, but it must also be non-placeholder and at least 32 characters.
 - Documentation and tests must make first-run token replacement explicit.
 
 ## Runtime
@@ -164,6 +164,6 @@ Pairing QR payload:
 - A participant sync token can load only that participant's assigned competitions.
 - A participant sync token cannot see Home Assistant user IDs or person entity IDs in dashboard state responses.
 - Oversized participant sync payloads are rejected before SQLite writes.
-- The app does not authorize admin routes with the shipped placeholder admin token.
+- The app does not authorize admin routes with the shipped placeholder admin token or short admin tokens.
 - HA sensors update after sync when publishing is enabled.
 - Home Assistant Yellow can install by pulling the pre-built image without compiling dependencies locally.

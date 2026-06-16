@@ -46,7 +46,7 @@ Run the backend locally:
 MINUTEMETRICS_ADMIN_TOKEN=replace-with-local-admin-token .venv/bin/python -m minutemetrics
 ```
 
-`MINUTEMETRICS_ADMIN_TOKEN` must be a non-placeholder value. The backend refuses to start with the shipped Home Assistant placeholder token.
+`MINUTEMETRICS_ADMIN_TOKEN` must be a non-placeholder value of at least 32 characters. The backend refuses to start with the shipped Home Assistant placeholder token or a short admin token.
 
 ## Home Assistant App
 
@@ -64,4 +64,4 @@ For remote sync, place an HTTPS reverse proxy in front of the exposed MinuteMetr
 
 Do not commit live Home Assistant option files, SQLite databases, participant sync tokens, admin tokens, local IP addresses, or local filesystem paths.
 
-The shipped Home Assistant app placeholder admin token is not accepted at runtime. Configure a long private `auth.admin_token` before starting the app.
+The shipped Home Assistant app placeholder admin token is not accepted at runtime. Configure a long private `auth.admin_token` of at least 32 characters before starting the app.

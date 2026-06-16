@@ -18,7 +18,7 @@ Home Assistant app:
 - Participant CRUD.
 - Optional Home Assistant user/person link, unlink, and relink behavior.
 - Token authentication.
-- Placeholder/default admin token rejection.
+- Placeholder/default and short admin token rejection.
 - Token rotation.
 - Pairing QR generation.
 - Sync payload size, string length, date-range, day membership, and daily-minute plausibility validation.
@@ -85,7 +85,7 @@ Repository and packaging:
 - Historical data remains intact when Home Assistant user/person links change.
 - Home Assistant app can recover from restart without data loss.
 - Token rotation invalidates previous token.
-- The shipped placeholder admin token cannot authorize admin APIs.
+- The shipped placeholder admin token and short admin tokens cannot authorize admin APIs.
 - Participant sync request limits prevent unbounded SQLite write amplification.
 - Dashboard handles at least four participants.
 - Documentation includes privacy and setup-token explanation.

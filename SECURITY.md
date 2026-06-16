@@ -15,4 +15,4 @@ Open a private security advisory on GitHub if available. If not, open an issue t
 - Do not commit Home Assistant option files from a live install.
 - Do not commit SQLite databases.
 - Rotate participant sync tokens if they are shared accidentally.
-- Change the placeholder admin token before starting the app. The runtime rejects `change-me-before-use`.
+- Change the placeholder admin token before starting the app. The runtime rejects `change-me-before-use` and admin tokens shorter than 32 characters.

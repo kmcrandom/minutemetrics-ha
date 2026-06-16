@@ -8,6 +8,7 @@ from typing import Any
 
 
 PLACEHOLDER_ADMIN_TOKEN = "change-me-before-use"
+MIN_ADMIN_TOKEN_LENGTH = 32
 
 
 @dataclass(frozen=True)
@@ -18,8 +19,12 @@ class Settings:
     server_url: str | None = None
 
     def __post_init__(self) -> None:
-        if _is_placeholder_admin_token(self.admin_token):
-            raise ValueError("auth.admin_token must be set to a non-placeholder value")
+        admin_token = _normalize_admin_token(self.admin_token)
+        if _is_invalid_admin_token(admin_token):
+            raise ValueError(
+                f"auth.admin_token must be set to a non-placeholder value of at least {MIN_ADMIN_TOKEN_LENGTH} characters"
+            )
+        object.__setattr__(self, "admin_token", admin_token)
 
 
 def load_settings() -> Settings:
@@ -65,8 +70,11 @@ def _optional_string(value: str | None) -> str | None:
     return stripped or None
 
 
-def _is_placeholder_admin_token(value: str | None) -> bool:
+def _normalize_admin_token(value: str | None) -> str:
     if value is None:
-        return True
-    stripped = value.strip()
-    return not stripped or stripped == PLACEHOLDER_ADMIN_TOKEN
+        return ""
+    return value.strip()
+
+
+def _is_invalid_admin_token(value: str) -> bool:
+    return not value or value == PLACEHOLDER_ADMIN_TOKEN or len(value) < MIN_ADMIN_TOKEN_LENGTH

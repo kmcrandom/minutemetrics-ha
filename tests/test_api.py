@@ -12,7 +12,7 @@ from minutemetrics.config import Settings
 from minutemetrics.db import connect
 
 
-ADMIN_TOKEN = "test-admin-token"
+ADMIN_TOKEN = "test-admin-token-with-at-least-32-chars"
 DASHBOARD_TOKEN = "test-dashboard-token"
 
 

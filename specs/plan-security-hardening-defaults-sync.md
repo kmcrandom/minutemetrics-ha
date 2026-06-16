@@ -35,8 +35,10 @@ These limits allow full-year and leap-year resyncs with operational slack, while
 
 1. Harden admin token configuration.
    - Add a shared placeholder-token constant in `minutemetrics/src/minutemetrics/config.py`.
-   - Reject missing, blank, or placeholder admin tokens during settings loading or app initialization.
-   - Preserve environment-variable overrides for local development when they are non-placeholder.
+   - Add a shared minimum admin-token length of `32` characters.
+   - Trim surrounding whitespace before validating and storing the admin token.
+   - Reject missing, blank, placeholder, or shorter-than-32-character admin tokens during settings loading or app initialization.
+   - Preserve environment-variable overrides for local development when they are non-placeholder and at least 32 characters.
    - Update docs that currently instruct users to replace the default token, if runtime behavior changes require clearer wording.
 
 2. Bound participant sync payloads.
@@ -50,7 +52,7 @@ These limits allow full-year and leap-year resyncs with operational slack, while
    - Redact those fields for all participants when the caller is participant-scoped.
 
 4. Update tests.
-   - Add tests proving the placeholder admin token cannot authorize admin endpoints or create an app successfully.
+   - Add tests proving placeholder and short admin tokens cannot authorize admin endpoints or create an app successfully.
    - Add tests for valid full-year sync near the configured limit.
    - Add tests rejecting too many days, too-wide date range, out-of-range day entries, oversized metadata strings, and more than 1,440 minutes.
    - Add tests proving rejected sync payloads do not partially write rows.
@@ -81,13 +83,13 @@ Run focused and full backend checks:
 
 Manual review:
 
-- Confirm the default Home Assistant app config still shows the placeholder as a setup prompt, but the runtime fails closed until changed.
+- Confirm the default Home Assistant app config still shows the placeholder as a setup prompt, but the runtime fails closed until changed to a token of at least 32 characters.
 - Confirm the dashboard still renders participant-visible standings after redaction.
 - Confirm full dashboard access still exposes Home Assistant identity metadata where existing Home Assistant sensor/admin workflows need it.
 
 ## Risks And Compatibility
 
-- Failing closed on the placeholder admin token can break any test or development workflow that relied on the previous fallback. Tests and local docs must set an explicit non-placeholder token.
-- Existing installations that never changed the placeholder token will need to update configuration before admin APIs work. This is intended security behavior.
+- Failing closed on placeholder or short admin tokens can break any test or development workflow that relied on weak local values. Tests and local docs must set an explicit non-placeholder token of at least 32 characters.
+- Existing installations that never changed the placeholder token, or changed it to a short weak token, will need to update configuration before admin APIs work. This is intended security behavior.
 - Payload limits may reject unusual historical resyncs longer than 400 days. A later spec can add pagination or server-negotiated sync windows if needed.
 - Participant metadata redaction can affect clients that used participant-scoped dashboard responses to inspect Home Assistant user/person IDs. That data remains available through full dashboard/admin contexts.

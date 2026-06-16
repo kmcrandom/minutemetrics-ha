@@ -6,6 +6,9 @@ import pytest
 
 from minutemetrics.config import load_settings
 
+HA_ADMIN_TOKEN = "ha-admin-token-with-at-least-32-chars"
+ENV_ADMIN_TOKEN = "env-admin-token-with-at-least-32-chars"
+
 
 def test_load_settings_from_home_assistant_options(tmp_path, monkeypatch) -> None:
     options_path = tmp_path / "options.json"
@@ -13,7 +16,7 @@ def test_load_settings_from_home_assistant_options(tmp_path, monkeypatch) -> Non
     options_path.write_text(
         json.dumps(
             {
-                "auth": {"admin_token": "ha-admin-token", "dashboard_token": "ha-dashboard-token"},
+                "auth": {"admin_token": HA_ADMIN_TOKEN, "dashboard_token": "ha-dashboard-token"},
                 "database": {"path": str(db_path)},
                 "network": {"server_url": "https://minutemetrics.example.test"},
             }
@@ -29,7 +32,7 @@ def test_load_settings_from_home_assistant_options(tmp_path, monkeypatch) -> Non
 
     settings = load_settings()
 
-    assert settings.admin_token == "ha-admin-token"
+    assert settings.admin_token == HA_ADMIN_TOKEN
     assert settings.dashboard_token == "ha-dashboard-token"
     assert settings.db_path == str(db_path)
     assert settings.server_url == "https://minutemetrics.example.test"
@@ -40,7 +43,7 @@ def test_environment_overrides_home_assistant_options(tmp_path, monkeypatch) -> 
     options_path.write_text(
         json.dumps(
             {
-                "auth": {"admin_token": "ha-admin-token", "dashboard_token": "ha-dashboard-token"},
+                "auth": {"admin_token": HA_ADMIN_TOKEN, "dashboard_token": "ha-dashboard-token"},
                 "database": {"path": str(tmp_path / "options.sqlite")},
             }
         ),
@@ -48,14 +51,14 @@ def test_environment_overrides_home_assistant_options(tmp_path, monkeypatch) -> 
     )
 
     monkeypatch.setenv("MINUTEMETRICS_OPTIONS_PATH", str(options_path))
-    monkeypatch.setenv("MINUTEMETRICS_ADMIN_TOKEN", "env-admin-token")
+    monkeypatch.setenv("MINUTEMETRICS_ADMIN_TOKEN", ENV_ADMIN_TOKEN)
     monkeypatch.setenv("MINUTEMETRICS_DASHBOARD_TOKEN", "env-dashboard-token")
     monkeypatch.setenv("MINUTEMETRICS_DB_PATH", str(tmp_path / "env.sqlite"))
     monkeypatch.setenv("MINUTEMETRICS_SERVER_URL", "https://env.example.test")
 
     settings = load_settings()
 
-    assert settings.admin_token == "env-admin-token"
+    assert settings.admin_token == ENV_ADMIN_TOKEN
     assert settings.dashboard_token == "env-dashboard-token"
     assert settings.db_path == str(tmp_path / "env.sqlite")
     assert settings.server_url == "https://env.example.test"
@@ -89,7 +92,7 @@ def test_missing_admin_token_is_rejected(tmp_path, monkeypatch) -> None:
 def test_placeholder_environment_admin_token_is_rejected(tmp_path, monkeypatch) -> None:
     options_path = tmp_path / "options.json"
     options_path.write_text(
-        json.dumps({"auth": {"admin_token": "ha-admin-token"}}),
+        json.dumps({"auth": {"admin_token": HA_ADMIN_TOKEN}}),
         encoding="utf-8",
     )
 
@@ -98,3 +101,29 @@ def test_placeholder_environment_admin_token_is_rejected(tmp_path, monkeypatch) 
 
     with pytest.raises(ValueError, match="auth.admin_token"):
         load_settings()
+
+
+def test_short_admin_token_is_rejected(tmp_path, monkeypatch) -> None:
+    options_path = tmp_path / "options.json"
+    options_path.write_text(
+        json.dumps({"auth": {"admin_token": "short-admin-token"}}),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setenv("MINUTEMETRICS_OPTIONS_PATH", str(options_path))
+    monkeypatch.delenv("MINUTEMETRICS_ADMIN_TOKEN", raising=False)
+
+    with pytest.raises(ValueError, match="at least 32 characters"):
+        load_settings()
+
+
+def test_admin_token_is_trimmed_before_storage(tmp_path, monkeypatch) -> None:
+    options_path = tmp_path / "options.json"
+    options_path.write_text(json.dumps({}), encoding="utf-8")
+
+    monkeypatch.setenv("MINUTEMETRICS_OPTIONS_PATH", str(options_path))
+    monkeypatch.setenv("MINUTEMETRICS_ADMIN_TOKEN", f"  {ENV_ADMIN_TOKEN}  ")
+
+    settings = load_settings()
+
+    assert settings.admin_token == ENV_ADMIN_TOKEN

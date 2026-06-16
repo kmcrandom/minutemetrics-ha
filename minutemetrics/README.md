@@ -20,7 +20,7 @@ Published installs use the pre-built GHCR image declared in `config.yaml`:
 2. Go to Settings -> Apps -> Install App.
 3. Install MinuteMetrics.
 4. Open the Configuration tab.
-5. Change `auth.admin_token` from `change-me-before-use` to a long private value. The app refuses to start with the placeholder token.
+5. Change `auth.admin_token` from `change-me-before-use` to a long private value of at least 32 characters. The app refuses to start with the placeholder token or a short admin token.
 6. Optionally set `auth.dashboard_token` to a long private value for standalone read-only dashboard access outside Home Assistant.
 7. Start the app.
 8. Open the Admin page and create your first competition.
@@ -62,7 +62,7 @@ MINUTEMETRICS_ADMIN_TOKEN=replace-with-local-admin-token MINUTEMETRICS_DASHBOARD
 
 The API will listen on `http://0.0.0.0:8080` by default.
 
-`MINUTEMETRICS_ADMIN_TOKEN` must be a non-placeholder value.
+`MINUTEMETRICS_ADMIN_TOKEN` must be a non-placeholder value of at least 32 characters.
 
 For local Home Assistant testing before a container image has been published, copy this `minutemetrics` directory to the Home Assistant local apps directory and temporarily remove the `image` field from the copied `config.yaml` so Supervisor builds the local Dockerfile.
 
@@ -109,7 +109,7 @@ MinuteMetrics participants are the stable identity for competition history. A pa
 
 ## Security
 
-- Change the placeholder admin token before starting the app. The runtime rejects `change-me-before-use`.
+- Change the placeholder admin token before starting the app. The runtime rejects `change-me-before-use` and admin tokens shorter than 32 characters.
 - Use a private dashboard token if exposing standalone full-dashboard access outside Home Assistant.
 - Treat participant sync tokens as private credentials.
 - Do not publish live Home Assistant options files or SQLite databases.

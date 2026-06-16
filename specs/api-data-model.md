@@ -20,7 +20,7 @@ The sync token is sufficient for participant sync. The server resolves the parti
 
 Administrator endpoints use a separate admin token configured for the Home Assistant app or local backend.
 
-The server must not accept the shipped placeholder admin token (`change-me-before-use`) as a usable runtime credential. A Home Assistant app install or local process that has no non-placeholder admin token must fail closed before privileged admin API use.
+The server must not accept the shipped placeholder admin token (`change-me-before-use`) as a usable runtime credential. A Home Assistant app install or local process that has no non-placeholder admin token of at least 32 characters must fail closed before privileged admin API use.
 
 Dashboard data endpoints are private. A request without a valid token or trusted Home Assistant ingress identity must receive `401 Unauthorized` and must not return competition data.
 
