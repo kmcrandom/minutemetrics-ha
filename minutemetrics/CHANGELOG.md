@@ -1,5 +1,12 @@
 # MinuteMetrics Changelog
 
+## 0.2.10
+
+- Rejected placeholder, blank, and short admin tokens at startup.
+- Added request-size, date-range, metadata-length, and daily-minute bounds to participant sync payloads.
+- Redacted Home Assistant identity metadata from participant-scoped dashboard responses.
+- Documented the required 32-character minimum for admin tokens.
+
 ## 0.2.9
 
 - Added copyable server URL and sync token fields to the Admin pairing QR dialog.
