@@ -20,6 +20,8 @@ The sync token is sufficient for participant sync. The server resolves the parti
 
 Administrator endpoints use a separate admin token configured for the Home Assistant app or local backend.
 
+The server must not accept the shipped placeholder admin token (`change-me-before-use`) as a usable runtime credential. A Home Assistant app install or local process that has no non-placeholder admin token of at least 32 characters must fail closed before privileged admin API use.
+
 Dashboard data endpoints are private. A request without a valid token or trusted Home Assistant ingress identity must receive `401 Unauthorized` and must not return competition data.
 
 Dashboard data supports three read contexts:
@@ -29,6 +31,8 @@ Dashboard data supports three read contexts:
 - No access: missing, unknown, or inactive token.
 
 Full dashboard access can list and read all active competitions. Participant dashboard access can list and read only active competitions where that participant has an active membership. Participant dashboard access still returns the full standings for competitions the participant belongs to, but it must not reveal unrelated competitions.
+
+Participant dashboard access must use a participant-scoped response projection. It may show display names, colors, totals, rankings, sync freshness, and daily-series competition data, but it must not expose Home Assistant identity metadata such as `home_assistant_user_id` or `home_assistant_person_entity_id`. Full dashboard access may continue to include Home Assistant identity metadata.
 
 The dashboard token is configured separately from the admin token:
 
@@ -143,6 +147,20 @@ Behavior:
 - Resolve participant from the token.
 - Upsert all days.
 - Return participant ID, accepted count, changed count, aggregate total, and server timestamp.
+
+Validation:
+
+- The sync payload must enforce bounded request work before storage writes.
+- `days` must have a server-defined maximum item count.
+- Device metadata strings and `timezone_identifier` must have server-defined maximum lengths.
+- The declared date range must be valid and must not exceed a server-defined maximum span.
+- Every submitted day must fall within the declared range.
+- `exercise_minutes` must have a plausible upper bound for one local day.
+- Invalid sync payloads must return `422 Unprocessable Entity` and must not write partial sync data.
+
+Open product decision:
+
+- MinuteMetrics currently treats the iOS app and participant sync token as the source of truth for HealthKit-derived values. The implementation must at least enforce plausibility bounds, but stronger anti-cheat or attestation is a future product decision unless explicitly prioritized.
 
 ### Competition State
 

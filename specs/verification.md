@@ -18,11 +18,14 @@ Home Assistant app:
 - Participant CRUD.
 - Optional Home Assistant user/person link, unlink, and relink behavior.
 - Token authentication.
+- Placeholder/default and short admin token rejection.
 - Token rotation.
 - Pairing QR generation.
+- Sync payload size, string length, date-range, day membership, and daily-minute plausibility validation.
 - Exercise day upsert.
 - Aggregate totals.
 - Leader and margin calculations.
+- Participant-scoped dashboard state redacts Home Assistant user/person identity metadata.
 - Stale sync detection.
 - Sensor payload generation.
 - Archived competition admin constraints:
@@ -60,7 +63,10 @@ Repository and packaging:
 - Generate pairing QR.
 - Link and unlink a participant from a Home Assistant user/person.
 - Sync daily payloads for multiple participants.
+- Confirm oversized sync payloads return `422` and do not write partial rows.
+- Confirm implausible daily exercise-minute totals return `422`.
 - Confirm aggregate endpoint.
+- Confirm participant-token competition state omits Home Assistant identity metadata while full dashboard access can still see it.
 - Confirm Home Assistant sensor publisher output.
 - Confirm resync updates existing days rather than duplicating rows.
 
@@ -79,6 +85,8 @@ Repository and packaging:
 - Historical data remains intact when Home Assistant user/person links change.
 - Home Assistant app can recover from restart without data loss.
 - Token rotation invalidates previous token.
+- The shipped placeholder admin token and short admin tokens cannot authorize admin APIs.
+- Participant sync request limits prevent unbounded SQLite write amplification.
 - Dashboard handles at least four participants.
 - Documentation includes privacy and setup-token explanation.
 - Home Assistant app installs from the repository using the pre-built image on `aarch64`.

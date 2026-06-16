@@ -24,6 +24,7 @@ The dashboard is the main shared view for exercise-minute competitions. It shoul
 - Home Assistant ingress viewers receive full dashboard access after Home Assistant authentication.
 - Standalone full-dashboard access uses a configured dashboard token.
 - iOS or participant-scoped dashboard access uses the participant sync token and only lists competitions assigned to that participant.
+- Participant-scoped dashboard access must redact Home Assistant identity metadata. It may show display names, colors, totals, rankings, stale status, and daily-series data, but must not receive `home_assistant_user_id` or `home_assistant_person_entity_id` values. Full dashboard contexts may receive those fields for admin and Home Assistant integration use.
 
 ## Visual Priorities
 
@@ -143,5 +144,6 @@ Expected derived values:
 - Dashboard can be embedded in Home Assistant.
 - Unauthenticated dashboard data requests return `401 Unauthorized`.
 - A participant sync token can only list and view competitions where that participant is an active member.
+- A participant sync token does not receive Home Assistant user IDs or person entity IDs in competition state responses.
 - Projection legend labels read "Today's pace", "Weekly pace", and "Average pace".
 - Each projection mode exposes a hover/tap/focus popup showing the participant's end-of-competition total minutes for that pace.
