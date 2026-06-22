@@ -64,6 +64,7 @@ Repository and packaging:
 - Link and unlink a participant from a Home Assistant user/person.
 - Sync daily payloads for multiple participants.
 - Confirm oversized sync payloads return `422` and do not write partial rows.
+- Confirm sync payloads with day rows outside the declared range return `422` without partial writes.
 - Confirm implausible daily exercise-minute totals return `422`.
 - Confirm aggregate endpoint.
 - Confirm participant-token competition state omits Home Assistant identity metadata while full dashboard access can still see it.
