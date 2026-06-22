@@ -543,8 +543,10 @@ On manual full sync:
 2. Compute coalesced active date ranges from the returned competitions.
 3. Cap each range at the iPhone's device-local today.
 4. Read HealthKit daily Exercise Minutes once per coalesced range.
-5. Submit daily rows to `/api/v1/sync/exercise-days`.
+5. Submit daily rows to `/api/v1/sync/exercise-days`, declaring the same start and end dates as the rows included in that request.
 6. Update local competition summary cards from the response.
+
+The iOS app must not submit rows outside the request's declared range. If HealthKit returns a day after the capped range end, such as a tomorrow row when full sync is capped at the device-local today, the app must omit that row or widen the declared range only when the wider range is intentional and still within server limits.
 
 Example:
 
